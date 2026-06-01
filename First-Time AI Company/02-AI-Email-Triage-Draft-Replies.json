@@ -1,0 +1,177 @@
+{
+  "name": "FirstAI 02 \u2014 Email Triage + Draft Replies",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "is:unread -label:ai-drafted"
+        }
+      },
+      "id": "65e5657d-6bdb-4bb0-bc79-23302b0aef13",
+      "name": "Gmail New Email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Classify intent (question|request|fyi|spam), urgency (high|med|low), and write a polite draft reply. Return JSON {intent,urgency,draft}."
+            },
+            {
+              "content": "=From: {{ $json.from.value[0].address }}\nSubject: {{ $json.subject }}\n\n{{ $json.text }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "73b2eff9-98d6-42d9-9234-d0d2321157c3",
+      "name": "GPT Triage + Draft",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "c008223b-4791-4795-a433-1dd22e01b0db",
+              "leftValue": "={{ $json.message.content.intent }}",
+              "rightValue": "spam",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "e6bb32b3-c8d4-4f5c-9e0d-610e3a5bbde2",
+      "name": "Skip Spam?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "=Re: {{ $('Gmail New Email').item.json.subject }}",
+        "message": "={{ $('GPT Triage + Draft').item.json.message.content.draft }}",
+        "options": {
+          "sendTo": "={{ $('Gmail New Email').item.json.from.value[0].address }}",
+          "threadId": "={{ $('Gmail New Email').item.json.threadId }}"
+        }
+      },
+      "id": "07f17c45-3b02-4a10-8c86-af1e691e408f",
+      "name": "Create Gmail Draft",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail New Email').item.json.id }}",
+        "labelIds": [
+          "ai-drafted"
+        ]
+      },
+      "id": "8aa32161-6e1a-49d1-8e2d-2d3cbffa19e6",
+      "name": "Label AI-Drafted",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Gmail New Email": {
+      "main": [
+        [
+          {
+            "node": "GPT Triage + Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Triage + Draft": {
+      "main": [
+        [
+          {
+            "node": "Skip Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Spam?": {
+      "main": [
+        [
+          {
+            "node": "Create Gmail Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Create Gmail Draft": {
+      "main": [
+        [
+          {
+            "node": "Label AI-Drafted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "d2bb6d9b-2b09-49b2-ac4f-780ca7cb6101",
+  "id": "c49cfc86-5eb6-40e5-9d33-c2939d9bbb96",
+  "tags": []
+}

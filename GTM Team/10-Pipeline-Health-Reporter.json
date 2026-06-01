@@ -1,0 +1,199 @@
+{
+  "name": "GTM 10 \u2014 Pipeline Health Reporter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "a86576fb-6af6-41c8-a053-69c1c80700d0",
+      "name": "Monday 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "operation": "getAll",
+        "filters": {
+          "propertyName": "dealstage",
+          "operator": "NEQ",
+          "value": "closedwon"
+        },
+        "limit": 500
+      },
+      "id": "27ffa091-128a-41f9-b240-fc10a99c72f4",
+      "name": "All Open Deals",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const deals=$input.all().map(i=>i.json);\nconst byStage={};\nlet total=0;\nfor(const d of deals){const s=d.properties.dealstage;byStage[s]=(byStage[s]||0)+Number(d.properties.amount||0);total+=Number(d.properties.amount||0);}\nconst stalled=deals.filter(d=>{const u=new Date(d.properties.hs_lastmodifieddate);return (Date.now()-u.getTime())>14*86400000;});\nreturn [{json:{total, byStage, stalled_count:stalled.length, stalled_names:stalled.slice(0,10).map(d=>d.properties.dealname)}}];"
+      },
+      "id": "a5f876cd-959c-4966-a663-c5e5731521bf",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a board-ready 'State of Pipeline' memo. Sections: Headline, Stage breakdown ($), Stalled deals (name them), Risks, Asks. Crisp."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "2a8927e8-1088-48e0-9263-3aa8336aaf7d",
+      "name": "GPT Memo",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#leadership",
+          "mode": "name"
+        },
+        "text": "=:bar_chart: Weekly Pipeline\n\n{{ $json.message.content }}"
+      },
+      "id": "be968912-c443-4547-9667-76a05bc69b7f",
+      "name": "Slack #leadership",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Pipeline {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "Memo|rich_text",
+              "textContent": "={{ $('GPT Memo').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "45264006-aee1-4430-9395-e09a7a75f37a",
+      "name": "Archive Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        380
+      ]
+    }
+  ],
+  "connections": {
+    "Monday 7am": {
+      "main": [
+        [
+          {
+            "node": "All Open Deals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Open Deals": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "GPT Memo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Memo": {
+      "main": [
+        [
+          {
+            "node": "Slack #leadership",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Archive Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "c3e5d089-38c3-4e1a-b2a2-cd7d5615e094",
+  "id": "8237e8e1-1a1e-48e0-9f75-1746c84926ad",
+  "tags": []
+}

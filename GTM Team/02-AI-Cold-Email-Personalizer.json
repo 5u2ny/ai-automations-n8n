@@ -1,0 +1,229 @@
+{
+  "name": "GTM 02 \u2014 AI Cold Email Personalizer",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "new"
+            }
+          ]
+        }
+      },
+      "id": "bf894a8a-a371-479d-8e9c-fc535a202bc8",
+      "name": "Read Leads Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $json.company_domain }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "e4ddd6bf-dccf-45ee-b859-6e0c9e7f196f",
+      "name": "Scrape Company Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "hero",
+              "cssSelector": "h1",
+              "returnValue": "text"
+            },
+            {
+              "key": "subhead",
+              "cssSelector": "h2",
+              "returnValue": "text"
+            }
+          ]
+        }
+      },
+      "id": "e18bb505-54ca-4dab-af3f-6b70973f7cd1",
+      "name": "Extract Context",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an SDR. Write a 90-word cold email. Reference the prospect's company hero copy. End with a low-friction CTA. No emojis."
+            },
+            {
+              "content": "=Prospect: {{ $('Read Leads Sheet').item.json.first_name }}, {{ $('Read Leads Sheet').item.json.title }} at {{ $('Read Leads Sheet').item.json.company }}.\nCompany hero: {{ $json.hero }}\nSubhead: {{ $json.subhead }}\nWrite the email."
+            }
+          ]
+        }
+      },
+      "id": "79a13efa-1f07-40aa-8064-e555ae398923",
+      "name": "GPT Personalize",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $('Read Leads Sheet').item.json.email }}",
+        "subject": "=Quick question, {{ $('Read Leads Sheet').item.json.first_name }}",
+        "message": "={{ $json.message.content }}",
+        "options": {}
+      },
+      "id": "10cdb5dc-10a5-4d57-9648-669bc5b7cd09",
+      "name": "Send via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Read Leads Sheet').item.json.email }}",
+            "status": "sent",
+            "sent_at": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {
+          "locationDefine": {
+            "values": {
+              "headerRow": 1
+            }
+          }
+        }
+      },
+      "id": "d589e68a-f286-463e-9801-2def2568bc00",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1340,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Read Leads Sheet": {
+      "main": [
+        [
+          {
+            "node": "Scrape Company Site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Company Site": {
+      "main": [
+        [
+          {
+            "node": "Extract Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Context": {
+      "main": [
+        [
+          {
+            "node": "GPT Personalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Personalize": {
+      "main": [
+        [
+          {
+            "node": "Send via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send via Gmail": {
+      "main": [
+        [
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "84d72014-2a06-4507-9d23-6dde9aedab29",
+  "id": "c2384e48-628b-4e12-bbf6-3ba5c9118c78",
+  "tags": []
+}

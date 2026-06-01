@@ -1,0 +1,445 @@
+{
+  "name": "GTM 12 \u2014 Account-Based Intent Signal Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "f7888f66-d59d-496a-b1e5-fe4fc2134a8e",
+      "name": "Daily 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://data.g2.com/api/v1/buyer-intent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "c7a37fd1-c2c7-404f-ba36-f18a2d2ccb1a",
+      "name": "G2 Intent API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/YOUR_GA_PROP:runReport",
+        "sendBody": true,
+        "jsonBody": "={\n \"dateRanges\":[{\"startDate\":\"yesterday\",\"endDate\":\"yesterday\"}],\n \"dimensions\":[{\"name\":\"pagePath\"},{\"name\":\"city\"}],\n \"metrics\":[{\"name\":\"activeUsers\"}]\n}"
+      },
+      "id": "40bcd996-8d4a-41e6-a088-df8cbe30ec4f",
+      "name": "GA4 Page Visits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/v2/adAnalyticsV2"
+      },
+      "id": "c4add9b6-6d32-4df7-8a5c-b2b14623fc6a",
+      "name": "LinkedIn Ad Clicks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "204e5e53-1818-494b-9baf-21a2243f7b4f",
+      "name": "Merge Signals",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        650,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// group raw signals by account_domain\nconst byAcct={};\nfor(const i of $input.all()){\n const j=i.json;\n const d=j.account_domain||j.company||j.dimensionValues?.[0]?.value||'unknown';\n byAcct[d]=byAcct[d]||{domain:d,signals:[]};\n byAcct[d].signals.push(j);\n}\nreturn Object.values(byAcct).map(x=>({json:x}));"
+      },
+      "id": "e4ff44ae-6527-482f-806f-63c755d1dfd8",
+      "name": "Normalize per Account",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        850,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Given mixed buying signals for an account, return JSON {score:0-100, primary_signal, recommended_channel:email|linkedin|ad, recommended_message_angle}."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "7aca897a-1f0e-437f-9920-409000e15817",
+      "name": "GPT Intent Score",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1050,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "1bea3328-720d-4fff-84a1-3721c580a3c8",
+              "leftValue": "={{ $json.message.content.score }}",
+              "rightValue": 80,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ]
+        }
+      },
+      "id": "f486e1ca-fc67-45fb-b7bc-3f546e85b936",
+      "name": "Score >= 80?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1250,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "input",
+        "rules": {
+          "rules": [
+            {
+              "value2": "email"
+            },
+            {
+              "value2": "linkedin"
+            },
+            {
+              "value2": "ad"
+            }
+          ]
+        },
+        "value1": "={{ $json.message.content.recommended_channel }}"
+      },
+      "id": "144c6477-f2ce-4c5f-8b4c-ec1afc904fad",
+      "name": "Switch by Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "operation": "update",
+        "dealId": "={{ $('Normalize per Account').item.json.domain }}",
+        "updateFields": {
+          "customProperties": {
+            "customProperty": [
+              {
+                "property": "intent_score",
+                "value": "={{ $('GPT Intent Score').item.json.message.content.score }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "99b2d9a3-1c84-4481-a33e-55aa9807b11e",
+      "name": "HubSpot Update Account",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#abm",
+          "mode": "name"
+        },
+        "text": "=:dart: High-intent account: {{ $('Normalize per Account').item.json.domain }} (score {{ $('GPT Intent Score').item.json.message.content.score }}). Angle: {{ $('GPT Intent Score').item.json.message.content.recommended_message_angle }}"
+      },
+      "id": "7e44c9e0-1db9-48b1-bb62-f96fc8184de5",
+      "name": "Slack Hot Accounts",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1650,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "EmailQueue",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "domain": "={{ $('Normalize per Account').item.json.domain }}",
+            "angle": "={{ $('GPT Intent Score').item.json.message.content.recommended_message_angle }}"
+          }
+        }
+      },
+      "id": "a113862f-64ed-49f0-9a14-43b5e3385616",
+      "name": "Queue Email Touch",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LinkedInQueue",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "domain": "={{ $('Normalize per Account').item.json.domain }}",
+            "angle": "={{ $('GPT Intent Score').item.json.message.content.recommended_message_angle }}"
+          }
+        }
+      },
+      "id": "20e429b2-77a8-4f23-8190-596d5095ee28",
+      "name": "Queue LinkedIn DM",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1650,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v18.0/act_YOUR_AD_ACCT/customaudiences"
+      },
+      "id": "cfbe5c27-3f0c-4b63-95c0-30d83b1b9188",
+      "name": "Trigger Retarget Ad",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1650,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 7am": {
+      "main": [
+        [
+          {
+            "node": "G2 Intent API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GA4 Page Visits",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LinkedIn Ad Clicks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "G2 Intent API": {
+      "main": [
+        [
+          {
+            "node": "Merge Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GA4 Page Visits": {
+      "main": [
+        [
+          {
+            "node": "Merge Signals",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "LinkedIn Ad Clicks": {
+      "main": [
+        [
+          {
+            "node": "Merge Signals",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Signals": {
+      "main": [
+        [
+          {
+            "node": "Normalize per Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize per Account": {
+      "main": [
+        [
+          {
+            "node": "GPT Intent Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Intent Score": {
+      "main": [
+        [
+          {
+            "node": "Score >= 80?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 80?": {
+      "main": [
+        [
+          {
+            "node": "Switch by Channel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HubSpot Update Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Channel": {
+      "main": [
+        [
+          {
+            "node": "Slack Hot Accounts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Queue Email Touch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Queue LinkedIn DM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Trigger Retarget Ad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "9d1a9701-2717-4c20-82da-db7d90c6080c",
+  "id": "8b7b1e58-54ac-4505-9da8-43d1c07b6198",
+  "tags": []
+}

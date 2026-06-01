@@ -1,0 +1,179 @@
+{
+  "name": "GTM 09 \u2014 Demo Request Pre-Call Briefing",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "calendly-booked",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "7db8e3d4-c181-469a-9437-791daffa7599",
+      "name": "Calendly Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://nubela.co/proxycurl/api/v2/linkedin?url={{ encodeURIComponent($json.body.payload.invitee.linkedin) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "18a12ff2-503f-41ee-bd02-d1c4af07dda6",
+      "name": "Scrape LinkedIn (Proxycurl)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $json.body.payload.invitee.company_domain }}"
+      },
+      "id": "2ff3ce3c-0fa0-4ed1-8955-adc1e3e63472",
+      "name": "Scrape Company",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex"
+      },
+      "id": "da9875de-eaf5-4441-b79f-7283ee398bcf",
+      "name": "Merge Research",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a 1-page pre-call brief for an AE. Sections: Who, Company snapshot, 3 hypotheses on pain, 3 sharp questions, Mutual context. Tight bullets only."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "c036e50b-fa9c-4a79-9157-5722a6a251a9",
+      "name": "GPT Brief",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $('Calendly Webhook').item.json.body.payload.event.assigned_to }}",
+        "subject": "=Pre-call brief: {{ $('Calendly Webhook').item.json.body.payload.invitee.name }}",
+        "message": "={{ $json.message.content }}",
+        "options": {}
+      },
+      "id": "6d8217f9-8ac4-45bd-bb8f-5a4e1b79c2df",
+      "name": "Email Brief to AE",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Calendly Webhook": {
+      "main": [
+        [
+          {
+            "node": "Scrape LinkedIn (Proxycurl)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scrape Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape LinkedIn (Proxycurl)": {
+      "main": [
+        [
+          {
+            "node": "Merge Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Company": {
+      "main": [
+        [
+          {
+            "node": "Merge Research",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Research": {
+      "main": [
+        [
+          {
+            "node": "GPT Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Brief": {
+      "main": [
+        [
+          {
+            "node": "Email Brief to AE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "950d1b51-7b7a-42d6-9055-ee68e91b3399",
+  "id": "6b6a4123-8f4e-45f0-bbf0-1156e6b0c98f",
+  "tags": []
+}

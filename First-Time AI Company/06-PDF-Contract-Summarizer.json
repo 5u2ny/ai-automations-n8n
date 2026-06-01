@@ -1,0 +1,168 @@
+{
+  "name": "FirstAI 06 \u2014 PDF Contract Summarizer",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "fileCreated",
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "YOUR_CONTRACTS_FOLDER",
+          "mode": "id"
+        },
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        }
+      },
+      "id": "2a7095c3-6152-4a61-aec7-04ea3784f28f",
+      "name": "Drive New File",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $json.id }}"
+      },
+      "id": "aaa518e9-21f8-47a2-9dc0-97c896a77dd1",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data"
+      },
+      "id": "6ba1286b-5222-4e6c-a720-4f0a32f67303",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Summarize contract. Sections: Parties, Term, Payment, Auto-renew (YES/NO + clause), Termination, Liability cap, Risky clauses. End with 'Verify with counsel.'"
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "id": "582f2eae-6c79-432b-81d0-69ddfd72f1d3",
+      "name": "GPT Summarize",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "=Summary - {{ $('Drive New File').item.json.name }}.md",
+        "fileContent": "={{ $json.message.content }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "YOUR_SUMMARIES_FOLDER",
+          "mode": "id"
+        }
+      },
+      "id": "0b20aa5e-1621-4a19-b959-b04860940309",
+      "name": "Save Summary to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Drive New File": {
+      "main": [
+        [
+          {
+            "node": "Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "GPT Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Summarize": {
+      "main": [
+        [
+          {
+            "node": "Save Summary to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "203087ce-a9b3-4580-a467-9f03ca5f30cb",
+  "id": "a9316d15-f085-4c89-9cd8-adad85662ddd",
+  "tags": []
+}

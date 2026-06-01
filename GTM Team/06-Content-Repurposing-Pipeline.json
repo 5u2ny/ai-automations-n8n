@@ -1,0 +1,192 @@
+{
+  "name": "GTM 06 \u2014 Content Repurposing Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "feedUrl": "https://www.youtube.com/feeds/videos.xml?channel_id=YOUR_CHANNEL_ID"
+      },
+      "id": "66d44ec1-d139-4843-91fd-60fff04aa776",
+      "name": "YouTube RSS",
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://youtubetranscript.com/?server_vid={{ $json.id.split(':').pop() }}"
+      },
+      "id": "3bef060a-6bd5-4be0-be13-208140d9ed33",
+      "name": "Get Transcript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Convert transcript \u2192 200-word LinkedIn post. Hook, 3 insights, CTA to video."
+            },
+            {
+              "content": "={{ $json.data }}"
+            }
+          ]
+        }
+      },
+      "id": "addd4bf8-690c-4306-98b0-c3f174e8c82e",
+      "name": "GPT LinkedIn",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Convert transcript \u2192 7-tweet thread. Numbered. Tweet 1 = hook. Last tweet = video link."
+            },
+            {
+              "content": "={{ $('Get Transcript').item.json.data }}"
+            }
+          ]
+        }
+      },
+      "id": "2d7ba625-668f-4061-bc48-017e2c980acf",
+      "name": "GPT Twitter Thread",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Repurpose: {{ $('YouTube RSS').item.json.title }}"
+            },
+            {
+              "key": "LinkedIn|rich_text",
+              "textContent": "={{ $('GPT LinkedIn').item.json.message.content }}"
+            },
+            {
+              "key": "Twitter|rich_text",
+              "textContent": "={{ $('GPT Twitter Thread').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "fa1407fd-54ed-4453-9b4c-2975b3b89dbc",
+      "name": "Queue to Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        900,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "YouTube RSS": {
+      "main": [
+        [
+          {
+            "node": "Get Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Transcript": {
+      "main": [
+        [
+          {
+            "node": "GPT LinkedIn",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GPT Twitter Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Queue to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Twitter Thread": {
+      "main": [
+        [
+          {
+            "node": "Queue to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "cf7014ab-9eea-4831-a70e-4432d8963c17",
+  "id": "10140813-add5-4408-90fa-7b445112cb62",
+  "tags": []
+}

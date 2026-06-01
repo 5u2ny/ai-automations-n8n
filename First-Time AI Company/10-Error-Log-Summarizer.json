@@ -1,0 +1,175 @@
+{
+  "name": "FirstAI 10 \u2014 Error Log Summarizer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sentry-issue",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "de42cc16-6868-4a0e-8ca8-32ef34b1bc5d",
+      "name": "Sentry Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "sentry_buffer",
+        "value": "={{ JSON.stringify($json.body) }}"
+      },
+      "id": "3b83ad4e-718a-493b-a333-c469480ce3c7",
+      "name": "Buffer (Redis)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        460,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "145d0a94-140e-4a12-a2d5-b809fccd382a",
+      "name": "Hourly Flush",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "sentry_buffer",
+        "keyType": "list"
+      },
+      "id": "9b4d2406-f165-4a37-8cf6-cde44066f7bb",
+      "name": "Pop Buffer",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        460,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Cluster errors by stack-trace fingerprint. Output top 5 with: title, count, suggested_owner_team, severity. Skip known-noisy fingerprints."
+            },
+            {
+              "content": "={{ $json.value }}"
+            }
+          ]
+        }
+      },
+      "id": "3f1650e7-e346-4bd1-a134-f45ed69d5118",
+      "name": "GPT Cluster",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#errors",
+          "mode": "name"
+        },
+        "text": "=:rotating_light: Hourly error digest\n\n{{ $json.message.content }}"
+      },
+      "id": "1f474f51-e424-4b7b-bab7-6855a7906c1e",
+      "name": "Slack #errors",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        900,
+        480
+      ]
+    }
+  ],
+  "connections": {
+    "Sentry Webhook": {
+      "main": [
+        [
+          {
+            "node": "Buffer (Redis)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hourly Flush": {
+      "main": [
+        [
+          {
+            "node": "Pop Buffer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pop Buffer": {
+      "main": [
+        [
+          {
+            "node": "GPT Cluster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Cluster": {
+      "main": [
+        [
+          {
+            "node": "Slack #errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "4fcf539f-e8f5-4b28-b44e-b9ec9fd6c385",
+  "id": "d8cb5a27-fc8f-4e0e-ae31-ecefd1e05019",
+  "tags": []
+}

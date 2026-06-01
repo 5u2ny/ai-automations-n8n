@@ -1,0 +1,197 @@
+{
+  "name": "FirstAI 08 \u2014 Daily Standup Aggregator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "5bbf059d-b41a-409b-a455-e0614e1cc2ac",
+      "name": "Daily 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n  \"query\": \"{ issues(filter:{updatedAt:{gte:\\\"{{ $now.minus({days:1}).toISO() }}\\\"}}){ nodes{ title state{name} assignee{name} } } }\"\n}"
+      },
+      "id": "dc4e215a-f567-4c41-8bac-87ba10ff5348",
+      "name": "Linear Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/YOUR_ORG/YOUR_REPO/commits?since={{ $now.minus({days:1}).toISO() }}"
+      },
+      "id": "63a41bb2-b0a4-42aa-b494-b10ded87b7e7",
+      "name": "GitHub Commits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "e7b90441-71b2-4aaf-9497-bd48cb73002c",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a team standup digest. Group by person: Yesterday | Today | Blockers (infer Blockers from stalled tickets). Plain bullets. No filler."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "848d702f-ca25-4ad6-bbeb-15aeb2268ecb",
+      "name": "GPT Standup",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#standup",
+          "mode": "name"
+        },
+        "text": "=:sunrise: Daily standup\n\n{{ $json.message.content }}"
+      },
+      "id": "0ba1bcda-fc6e-4265-a344-065acd4d6682",
+      "name": "Post #standup",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 9am": {
+      "main": [
+        [
+          {
+            "node": "Linear Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GitHub Commits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear Updates": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Commits": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "GPT Standup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Standup": {
+      "main": [
+        [
+          {
+            "node": "Post #standup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "5b55bd61-aa0b-46a3-ada9-37bce657e98f",
+  "id": "671259b7-7c20-4898-909f-85c01cc7e444",
+  "tags": []
+}

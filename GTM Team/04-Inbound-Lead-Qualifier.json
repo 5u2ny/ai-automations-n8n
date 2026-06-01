@@ -1,0 +1,203 @@
+{
+  "name": "GTM 04 \u2014 Inbound Lead Qualifier",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "inbound-lead",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "42285c2b-2d6e-4b00-bc0c-5f292da5e91e",
+      "name": "Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://person.clearbit.com/v2/combined/find?email={{ $json.body.email }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "abe07d27-c0f2-4d72-91c1-b5a56b6d6d85",
+      "name": "Enrich (Clearbit)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Score the lead 1-100 against ICP: SaaS, 50-500 FTE, US/EU, title contains Head/VP/C-level. Return JSON {score, tier (hot|warm|cold), reasoning}."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "bb28ce72-3831-429f-b1a3-ba7aa7f6b032",
+      "name": "GPT Score Fit",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "upsert",
+        "email": "={{ $('Form Webhook').item.json.body.email }}",
+        "additionalFields": {
+          "firstName": "={{ $('Form Webhook').item.json.body.first_name }}",
+          "lastName": "={{ $('Form Webhook').item.json.body.last_name }}",
+          "company": "={{ $('Form Webhook').item.json.body.company }}",
+          "leadStatus": "={{ $json.message.content.tier }}"
+        }
+      },
+      "id": "b64b5951-731f-471b-a565-c869d86cedbe",
+      "name": "Create HubSpot Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "7aaff94d-bf00-4f79-98a8-4f378b27046d",
+              "leftValue": "={{ $('GPT Score Fit').item.json.message.content.tier }}",
+              "rightValue": "hot",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "aa5343c9-0219-4786-8ef7-da7dac8421c7",
+      "name": "Hot?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#sales-hot",
+          "mode": "name"
+        },
+        "text": "=:fire: Hot lead \u2014 {{ $('Form Webhook').item.json.body.first_name }} {{ $('Form Webhook').item.json.body.last_name }} at {{ $('Form Webhook').item.json.body.company }}\nScore: {{ $('GPT Score Fit').item.json.message.content.score }}\nReason: {{ $('GPT Score Fit').item.json.message.content.reasoning }}"
+      },
+      "id": "64bb7751-fe4e-4d33-9ff8-af1efc1a8e07",
+      "name": "Slack Alert AE",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1340,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Enrich (Clearbit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich (Clearbit)": {
+      "main": [
+        [
+          {
+            "node": "GPT Score Fit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Score Fit": {
+      "main": [
+        [
+          {
+            "node": "Create HubSpot Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create HubSpot Contact": {
+      "main": [
+        [
+          {
+            "node": "Hot?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot?": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert AE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "479e1891-63bc-448d-ac20-f985dde1da6f",
+  "id": "432a039e-fb11-4906-acf1-1f8013fbd257",
+  "tags": []
+}

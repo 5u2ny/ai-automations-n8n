@@ -1,0 +1,502 @@
+{
+  "name": "GTM 11 \u2014 End-to-End Outbound Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "1de45b0a-d62d-4a5b-8ae8-14538975eede",
+      "name": "Cron 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/v1/mixed_people/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.APOLLO_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"person_titles\":[\"Head of AI\",\"VP Engineering\"],\n \"per_page\":20\n}"
+      },
+      "id": "68350018-fdb3-487f-a933-231dae33ecb8",
+      "name": "Apollo ICP Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "people",
+        "options": {}
+      },
+      "id": "20eb98f2-03e5-408a-bd6d-c5aa2a1917be",
+      "name": "Split Leads",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://person.clearbit.com/v2/combined/find?email={{ $json.email }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "fa733cea-bec0-4868-b2e7-dfe7f767b337",
+      "name": "Clearbit Enrich",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Score lead 1-100 vs ICP (AI startup, 50-500 FTE, US/EU). Return JSON {score, tier:hot|warm|cold, angle (1-sentence personalized hook), pain_hypothesis}."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "73ee19ed-f225-4737-a057-2c922c38ae44",
+      "name": "GPT Score + Angle",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "bfdee99d-65a8-49aa-ac21-ae9089084299",
+              "leftValue": "={{ $json.message.content.score }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ]
+        }
+      },
+      "id": "a7e76c5b-2024-4aa0-8756-d3346ff9f4f2",
+      "name": "Score >= 70?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a 70-word cold email using the angle and pain hypothesis. End with soft CTA."
+            },
+            {
+              "content": "=Angle: {{ $json.message.content.angle }}\nPain: {{ $json.message.content.pain_hypothesis }}\nFirst name: {{ $('Split Leads').item.json.first_name }}"
+            }
+          ]
+        }
+      },
+      "id": "b7de176d-fcd4-49c4-b40f-230aff43f578",
+      "name": "Personalize Email",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $('Split Leads').item.json.email }}",
+        "subject": "=Quick idea for {{ $('Split Leads').item.json.organization.name }}",
+        "message": "={{ $json.message.content }}",
+        "options": {}
+      },
+      "id": "31ea630f-4bb6-4daf-aa26-9ae9be299e73",
+      "name": "Send Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Outbound",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Split Leads').item.json.email }}",
+            "tier": "hot",
+            "sent_at": "={{ $now.toISO() }}",
+            "score": "={{ $('GPT Score + Angle').item.json.message.content.score }}"
+          }
+        }
+      },
+      "id": "d1062d64-036d-4dcc-8ad2-9aa31de19109",
+      "name": "Log to Sheet (Hot)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 48,
+        "unit": "hours"
+      },
+      "id": "bfad4e8a-f0ea-4e67-903f-0bbf1014cf72",
+      "name": "Wait 48h for Reply",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "filters": {
+          "q": "=from:{{ $('Split Leads').item.json.email }} newer_than:3d"
+        },
+        "limit": 1
+      },
+      "id": "71f84d83-a3c7-4cbf-9c57-da9ebf3c80b9",
+      "name": "Check Gmail Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "3c8b7bd2-0c77-4ebd-8ec6-c0080e13d44b",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        }
+      },
+      "id": "33e58d89-9acb-4068-bcc3-d35d88857a22",
+      "name": "Reply Received?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#sales-hot",
+          "mode": "name"
+        },
+        "text": "=:tada: Reply from {{ $('Split Leads').item.json.email }} \u2014 assign AE."
+      },
+      "id": "2fe21eab-f91c-4db2-90d3-73c4c5f04dfc",
+      "name": "Slack AE Reply!",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $('Split Leads').item.json.email }}",
+        "subject": "=Re: Quick idea for {{ $('Split Leads').item.json.organization.name }}",
+        "message": "=Bumping this up. Different angle: {{ $('GPT Score + Angle').item.json.message.content.angle }}. Worth 15 min?",
+        "options": {}
+      },
+      "id": "33ea78a2-9aad-4efc-a4b9-b44d267bca55",
+      "name": "Send Follow-Up",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2600,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Nurture",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Split Leads').item.json.email }}",
+            "tier": "={{ $('GPT Score + Angle').item.json.message.content.tier }}",
+            "added_at": "={{ $now.toISO() }}"
+          }
+        }
+      },
+      "id": "9f9de4b0-2aa7-40dd-9f98-0d2f160b86a5",
+      "name": "Warm Nurture Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1400,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Cron 09:00": {
+      "main": [
+        [
+          {
+            "node": "Apollo ICP Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apollo ICP Search": {
+      "main": [
+        [
+          {
+            "node": "Split Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Leads": {
+      "main": [
+        [
+          {
+            "node": "Clearbit Enrich",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clearbit Enrich": {
+      "main": [
+        [
+          {
+            "node": "GPT Score + Angle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Score + Angle": {
+      "main": [
+        [
+          {
+            "node": "Score >= 70?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 70?": {
+      "main": [
+        [
+          {
+            "node": "Personalize Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Warm Nurture Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personalize Email": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Gmail": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheet (Hot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Sheet (Hot)": {
+      "main": [
+        [
+          {
+            "node": "Wait 48h for Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 48h for Reply": {
+      "main": [
+        [
+          {
+            "node": "Check Gmail Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Gmail Reply": {
+      "main": [
+        [
+          {
+            "node": "Reply Received?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply Received?": {
+      "main": [
+        [
+          {
+            "node": "Slack AE Reply!",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Follow-Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "afdcabfc-14e2-49a4-b086-024a96e8059b",
+  "id": "f6ddff4e-ce88-47cf-af51-eb5c36fc6523",
+  "tags": []
+}

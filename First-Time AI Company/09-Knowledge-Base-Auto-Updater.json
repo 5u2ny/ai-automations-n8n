@@ -1,0 +1,181 @@
+{
+  "name": "FirstAI 09 \u2014 Knowledge Base Auto-Updater",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "2e7a5548-88b9-40d6-af15-8e96c38ba16f",
+      "name": "Weekly Sunday",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "ticket",
+        "operation": "getAll",
+        "filters": {
+          "query": "created>{{ $now.minus({days:7}).toFormat('yyyy-MM-dd') }} status:solved"
+        },
+        "limit": 200
+      },
+      "id": "2c10a643-e40c-4750-927d-f2d964543f6d",
+      "name": "Recent Tickets",
+      "type": "n8n-nodes-base.zendesk",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Cluster tickets by root cause. For clusters with >=5 tickets that lack a KB article, draft one: {title, body_md, est_tickets_avoided}. Return JSON array."
+            },
+            {
+              "content": "={{ JSON.stringify($json.map(t=>({subject:t.subject,first_msg:t.description}))) }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "08f81d09-ae24-44a3-9970-3e0aa6949cfb",
+      "name": "GPT Cluster + Draft",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "message.content",
+        "options": {}
+      },
+      "id": "9ef21c0d-d34e-42b4-a8b5-11cdc686e2e7",
+      "name": "Split Articles",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_KB_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "={{ $json.title }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "Draft"
+            },
+            {
+              "key": "Tickets avoided|number",
+              "numberValue": "={{ $json.est_tickets_avoided }}"
+            },
+            {
+              "key": "Body|rich_text",
+              "textContent": "={{ $json.body_md }}"
+            }
+          ]
+        }
+      },
+      "id": "1c2bfb4c-bdbe-48e6-aa50-816d657dd64b",
+      "name": "Draft to Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Weekly Sunday": {
+      "main": [
+        [
+          {
+            "node": "Recent Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recent Tickets": {
+      "main": [
+        [
+          {
+            "node": "GPT Cluster + Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Cluster + Draft": {
+      "main": [
+        [
+          {
+            "node": "Split Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Articles": {
+      "main": [
+        [
+          {
+            "node": "Draft to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "0fdab032-0c78-45a8-a4d8-3bde9040e5aa",
+  "id": "1f59367f-7daa-481d-b2e5-0144d28a709a",
+  "tags": []
+}

@@ -1,0 +1,169 @@
+{
+  "name": "GTM 03 \u2014 LinkedIn Founder Content Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "818ee54e-1009-4049-ae3b-00530a1c2301",
+      "name": "Telegram Voice In",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}"
+      },
+      "id": "e55c5163-92d5-471a-ad70-ae1d01a22a1d",
+      "name": "Download Voice",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "data"
+      },
+      "id": "4d9aed28-7b1d-4341-b6d8-a7ac09b8b9a2",
+      "name": "Whisper Transcribe",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are the founder's ghostwriter. Convert voice transcript into a 150-word LinkedIn post in their voice: punchy, single-line paragraphs, no hashtags, contrarian hook in line 1."
+            },
+            {
+              "content": "=Transcript:\n{{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "id": "286f85fa-977f-494f-9d3c-3c8755d7938a",
+      "name": "GPT Polish Post",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_DB_ID",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=LinkedIn draft {{ $now.toISO() }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "Draft"
+            },
+            {
+              "key": "Body|rich_text",
+              "textContent": "={{ $json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "a5cd16d1-ecb0-4356-8199-2adc0428cf65",
+      "name": "Queue Draft (Notion)",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Voice In": {
+      "main": [
+        [
+          {
+            "node": "Download Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Voice": {
+      "main": [
+        [
+          {
+            "node": "Whisper Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper Transcribe": {
+      "main": [
+        [
+          {
+            "node": "GPT Polish Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Polish Post": {
+      "main": [
+        [
+          {
+            "node": "Queue Draft (Notion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "3fcc4aa8-b092-46ab-9827-bc1c54c07fd9",
+  "id": "4af2ab1b-d849-471c-b6b9-22eab48333f6",
+  "tags": []
+}

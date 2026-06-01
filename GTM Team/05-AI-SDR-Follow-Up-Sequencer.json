@@ -1,0 +1,184 @@
+{
+  "name": "GTM 05 \u2014 AI SDR Follow-Up Sequencer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "hubspot-no-reply",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "2e83fbd2-ab14-479d-9879-e00e8ec2d031",
+      "name": "HubSpot Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "get",
+        "contactId": "={{ $json.body.contact_id }}"
+      },
+      "id": "76e0a417-6825-4ee1-8fcf-6e510b1cdb3b",
+      "name": "Get Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "engagement",
+        "operation": "getAll",
+        "filters": {
+          "contactId": "={{ $json.id }}",
+          "type": "EMAIL"
+        },
+        "limit": 1
+      },
+      "id": "0e0956e8-a280-4ea1-a03b-b41c432ed5bf",
+      "name": "Get Last Email",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You write SDR follow-up emails. Reference the prior email subtly. Keep under 60 words. New angle each time. No 'just checking in'."
+            },
+            {
+              "content": "=Prior email: {{ $json.body }}\nContact: {{ $('Get Contact').item.json.properties.firstname }}, {{ $('Get Contact').item.json.properties.jobtitle }}"
+            }
+          ]
+        }
+      },
+      "id": "d922024e-ae57-4c29-8eac-c4dcb9f6064b",
+      "name": "GPT Draft Next Touch",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $('Get Contact').item.json.properties.email }}",
+        "subject": "=Re: {{ $('Get Last Email').item.json.subject }}",
+        "message": "={{ $json.message.content }}",
+        "options": {}
+      },
+      "id": "a5e86ea8-016a-4b4f-a18a-0e0794406401",
+      "name": "Send Follow-Up",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "engagement",
+        "operation": "create",
+        "type": "EMAIL",
+        "metadata": {
+          "body": "={{ $('GPT Draft Next Touch').item.json.message.content }}"
+        }
+      },
+      "id": "eb9b0d71-7109-4334-8051-ba2fe3a15eb2",
+      "name": "Log to HubSpot",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "HubSpot Event": {
+      "main": [
+        [
+          {
+            "node": "Get Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact": {
+      "main": [
+        [
+          {
+            "node": "Get Last Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Email": {
+      "main": [
+        [
+          {
+            "node": "GPT Draft Next Touch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Draft Next Touch": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-Up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-Up": {
+      "main": [
+        [
+          {
+            "node": "Log to HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "7f409edd-7a21-472d-93e3-41450d26b982",
+  "id": "68789542-f06e-432f-9e6f-1848cbb2c94c",
+  "tags": []
+}

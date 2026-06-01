@@ -1,0 +1,458 @@
+{
+  "name": "GTM 13 \u2014 Revenue Operations Forecast Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "da8a3269-9328-41c1-a722-852afe88f834",
+      "name": "Weekly Mon 6am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "operation": "getAll",
+        "filters": {
+          "propertyName": "dealstage",
+          "operator": "NEQ",
+          "value": "closedwon"
+        },
+        "limit": 500
+      },
+      "id": "1becf1ca-e8a5-4beb-b6d5-02d740b5574b",
+      "name": "All Open Deals",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "results",
+        "options": {}
+      },
+      "id": "79b3ef3c-c2ef-4c8b-9952-74b34b115bd4",
+      "name": "Split per Deal",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "engagement",
+        "operation": "getAll",
+        "filters": {
+          "contactId": "={{ $json.id }}"
+        },
+        "limit": 5
+      },
+      "id": "2a208b58-113a-4152-b8d4-fd94c0035d0e",
+      "name": "Last Activity",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "filters": {
+          "q": "=to:{{ $json.properties.email }} newer_than:14d"
+        },
+        "limit": 10
+      },
+      "id": "ecba7bc6-4eef-472c-a220-88917098047e",
+      "name": "Recent Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex"
+      },
+      "id": "c9b1fe68-8633-4b8e-b4bf-708d9a003e34",
+      "name": "Merge Deal Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Score deal risk 0-100 (0=safe,100=at risk). Return JSON {risk, drivers:[...], next_best_action, sentiment:pos|neu|neg}."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "c239bcd1-2089-4de9-9e66-8f1442c85e2c",
+      "name": "GPT Deal Risk Score",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "da3cb8f0-b16a-411b-b648-aeb1fb5bce22",
+      "name": "Aggregate All",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a board-ready forecast memo. Sections: TL;DR, $ pipeline by stage, top 5 at-risk deals (name + driver), top 5 likely wins, asks."
+            },
+            {
+              "content": "={{ JSON.stringify($json.data) }}"
+            }
+          ]
+        }
+      },
+      "id": "f88cfe9d-0e6f-449e-bc96-ead31ccba5df",
+      "name": "GPT Forecast Memo",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#exec",
+          "mode": "name"
+        },
+        "text": "=:chart_with_upwards_trend: Weekly forecast\n\n{{ $json.message.content }}"
+      },
+      "id": "6fea9f3f-6ed8-4bd4-8430-56e8fe78ce4f",
+      "name": "Slack #exec",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_FORECAST_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Forecast {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "Memo|rich_text",
+              "textContent": "={{ $json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "88d884b7-cdd0-4b44-aa46-a0d10c94cb86",
+      "name": "Archive Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "6b559158-7a9c-474c-8463-9fcb8a9e6074",
+              "leftValue": "={{ $json.message.content.risk }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ]
+        }
+      },
+      "id": "e2e24118-c122-4abd-b6a0-66a8cce4c8e5",
+      "name": "Filter At-Risk",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "deal",
+        "operation": "update",
+        "dealId": "={{ $('Split per Deal').item.json.id }}",
+        "updateFields": {
+          "customProperties": {
+            "customProperty": [
+              {
+                "property": "ai_risk_score",
+                "value": "={{ $json.message.content.risk }}"
+              },
+              {
+                "property": "ai_next_action",
+                "value": "={{ $json.message.content.next_best_action }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "dc7efaa0-ad35-467d-9042-7af6acb15af3",
+      "name": "Update HubSpot Risk",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "={{ $('Split per Deal').item.json.properties.hubspot_owner_id }}",
+          "mode": "id"
+        },
+        "text": "=:warning: At-risk deal: {{ $('Split per Deal').item.json.properties.dealname }}. Next action: {{ $json.message.content.next_best_action }}"
+      },
+      "id": "348d21f9-f999-4ef1-9764-47b7344246b4",
+      "name": "DM Deal Owner",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Weekly Mon 6am": {
+      "main": [
+        [
+          {
+            "node": "All Open Deals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Open Deals": {
+      "main": [
+        [
+          {
+            "node": "Split per Deal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split per Deal": {
+      "main": [
+        [
+          {
+            "node": "Last Activity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Recent Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Last Activity": {
+      "main": [
+        [
+          {
+            "node": "Merge Deal Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recent Emails": {
+      "main": [
+        [
+          {
+            "node": "Merge Deal Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Deal Context": {
+      "main": [
+        [
+          {
+            "node": "GPT Deal Risk Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Deal Risk Score": {
+      "main": [
+        [
+          {
+            "node": "Aggregate All",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter At-Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate All": {
+      "main": [
+        [
+          {
+            "node": "GPT Forecast Memo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Forecast Memo": {
+      "main": [
+        [
+          {
+            "node": "Slack #exec",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Archive Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter At-Risk": {
+      "main": [
+        [
+          {
+            "node": "Update HubSpot Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update HubSpot Risk": {
+      "main": [
+        [
+          {
+            "node": "DM Deal Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "2e9c3b2f-dcf2-4db5-8741-9fdd4209b91b",
+  "id": "a1496284-9682-4248-a0e7-8611ebe635a1",
+  "tags": []
+}

@@ -1,0 +1,199 @@
+{
+  "name": "FirstAI 04 \u2014 Meeting Transcription \u2192 Action Items",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "otter-done",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "e7b604d0-867e-4163-99aa-91f6cb3063b0",
+      "name": "Otter Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.transcript_url }}"
+      },
+      "id": "a8c40d71-98ea-4dff-9b13-e3bbaeb98028",
+      "name": "Get Transcript",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract action items: [{task, owner_email, due_date_iso}]. If no date, default to +7 days. Return JSON array."
+            },
+            {
+              "content": "={{ $json.data }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "4520eae6-8232-4d3c-b93a-bb1c80778d0b",
+      "name": "GPT Action Items",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "message.content",
+        "options": {}
+      },
+      "id": "df724223-e8d5-44de-aed6-6b80ed055b7b",
+      "name": "Split Tasks",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_TASKS_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Task|title",
+              "title": "={{ $json.task }}"
+            },
+            {
+              "key": "Owner|email",
+              "emailValue": "={{ $json.owner_email }}"
+            },
+            {
+              "key": "Due|date",
+              "date": "={{ $json.due_date_iso }}"
+            }
+          ]
+        }
+      },
+      "id": "bf24b1f4-3343-4f7d-acf7-5cf29a14ac2f",
+      "name": "Create Notion Task",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#meetings",
+          "mode": "name"
+        },
+        "text": "=:memo: New action items from meeting \u2014 see Notion."
+      },
+      "id": "11196cc8-559e-41ee-902e-7319a7564334",
+      "name": "Slack Summary",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1340,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Otter Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Transcript": {
+      "main": [
+        [
+          {
+            "node": "GPT Action Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Action Items": {
+      "main": [
+        [
+          {
+            "node": "Split Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Tasks": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Task": {
+      "main": [
+        [
+          {
+            "node": "Slack Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "51332d92-07fd-4d18-8d7b-d21bc184f335",
+  "id": "ab4afcc6-00d2-46b9-81c3-f4e77faa698c",
+  "tags": []
+}

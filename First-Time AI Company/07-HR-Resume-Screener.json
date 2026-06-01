@@ -1,0 +1,151 @@
+{
+  "name": "FirstAI 07 \u2014 HR Resume Screener",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "greenhouse-applied",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "9eaf5fa7-022c-4564-a9d5-3d67b3c4b9d9",
+      "name": "Greenhouse Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.application.attachments[0].url }}",
+        "responseFormat": "file"
+      },
+      "id": "5337fcde-e3ae-40bb-8333-c11c583c2fb1",
+      "name": "Download Resume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data"
+      },
+      "id": "871f8694-9e89-42bd-849a-68e1980516a8",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Score resume against rubric. Return JSON {experience:1-5, skills_match:1-5, growth:1-5, total:0-15, notes, red_flags[]}. Be conservative."
+            },
+            {
+              "content": "=Role: {{ $('Greenhouse Webhook').item.json.body.job.name }}\nRequirements: {{ $('Greenhouse Webhook').item.json.body.job.requirements }}\n\nResume:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "903a84fb-ed78-4776-9b0c-6e7e56c35dd2",
+      "name": "GPT Score Rubric",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://harvest.greenhouse.io/v1/applications/{{ $('Greenhouse Webhook').item.json.body.application.id }}/notes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "jsonBody": "={\n  \"user_id\": 1,\n  \"body\": \"AI Score {{ $json.message.content.total }}/15. {{ $json.message.content.notes }}\",\n  \"visibility\": \"private\"\n}"
+      },
+      "id": "11ade227-b9a3-4a13-8610-762d77697689",
+      "name": "Push Note to Greenhouse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Greenhouse Webhook": {
+      "main": [
+        [
+          {
+            "node": "Download Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Resume": {
+      "main": [
+        [
+          {
+            "node": "Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text": {
+      "main": [
+        [
+          {
+            "node": "GPT Score Rubric",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Score Rubric": {
+      "main": [
+        [
+          {
+            "node": "Push Note to Greenhouse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "f598da65-5c96-467d-94cc-bf2f6087a74b",
+  "id": "5fa76c4a-9c02-4d90-8893-4d4a1d6d75db",
+  "tags": []
+}

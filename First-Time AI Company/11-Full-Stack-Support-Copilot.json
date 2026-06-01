@@ -1,0 +1,401 @@
+{
+  "name": "FirstAI 11 \u2014 Full-Stack Support Copilot",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "to:support@ -label:processed"
+        }
+      },
+      "id": "7e628e4c-132c-4de5-98e1-6edc1ffe5ebb",
+      "name": "Email Inbound",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "path": "slack-support",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "dd15bba1-51f3-47f2-b8e9-f67801c01f7b",
+      "name": "Slack Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "path": "web-support",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "77f78dcb-537f-4e3e-95fb-d97356e5810d",
+      "name": "Web Widget",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $input.first().json;\nconst src = s.from?.value ? 'email' : (s.body?.text ? 'slack' : 'web');\nconst text = s.text || s.body?.text || s.body?.message || '';\nconst customer = s.from?.value?.[0]?.address || s.body?.user || s.body?.email || 'unknown';\nreturn [{json:{source:src, customer, text}}];"
+      },
+      "id": "d408f17e-d9a6-499d-8958-80eea58530bd",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        450,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Return JSON {intent, urgency:low|med|high, sentiment:pos|neu|neg, language}."
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "2f43641c-0f6b-4c34-9480-b66a413ce74d",
+      "name": "GPT Classify",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        650,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "501c88f1-7f0f-423a-97bf-92e91a4a91e2",
+      "name": "Embed Question",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        850,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "support_kb",
+          "mode": "list"
+        },
+        "prompt": "={{ $('Normalize Input').item.json.text }}",
+        "topK": 4
+      },
+      "id": "7d461cd8-a334-44d9-b014-63402196226d",
+      "name": "Qdrant KB Search",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Draft a customer reply grounded in the KB context. If KB has no answer, say 'Escalating to a human.' Cite article titles."
+            },
+            {
+              "content": "=KB:\n{{ $json.documents }}\n\nQ: {{ $('Normalize Input').item.json.text }}"
+            }
+          ]
+        }
+      },
+      "id": "ea817eb7-1726-4ad2-8da4-0a637d03fda8",
+      "name": "GPT Draft Answer",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1250,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "4cf618e1-41bf-459c-8412-6291370aa5f8",
+              "leftValue": "={{ $('GPT Classify').item.json.message.content.sentiment }}",
+              "rightValue": "neg",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "407b2823-81fe-4a9d-9362-aa30fcfb4c33",
+      "name": "Negative Sentiment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1450,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#support-escalations",
+          "mode": "name"
+        },
+        "text": "=:rotating_light: Negative sentiment from {{ $('Normalize Input').item.json.customer }} via {{ $('Normalize Input').item.json.source }}\n\nMessage: {{ $('Normalize Input').item.json.text }}\n\nDraft reply: {{ $('GPT Draft Answer').item.json.message.content }}"
+      },
+      "id": "f993d284-f900-46dc-91e7-5b70c0cdbb0c",
+      "name": "Escalate to Human",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1650,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "subject": "=Re: {{ $('Email Inbound').item.json.subject }}",
+        "message": "={{ $('GPT Draft Answer').item.json.message.content }}",
+        "options": {
+          "sendTo": "={{ $('Normalize Input').item.json.customer }}"
+        }
+      },
+      "id": "9fd98a1d-fc72-491f-93f6-95794ec74b99",
+      "name": "Send Auto-Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1650,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SupportLog",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source": "={{ $('Normalize Input').item.json.source }}",
+            "intent": "={{ $('GPT Classify').item.json.message.content.intent }}",
+            "sentiment": "={{ $('GPT Classify').item.json.message.content.sentiment }}",
+            "kb_hit": "={{ $('Qdrant KB Search').item.json.documents.length > 0 }}",
+            "ts": "={{ $now.toISO() }}"
+          }
+        }
+      },
+      "id": "fd2433c0-296f-44cd-b46d-73ebce15b2f8",
+      "name": "Log to Analytics Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1850,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Email Inbound": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Inbound": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Web Widget": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "GPT Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Classify": {
+      "main": [
+        [
+          {
+            "node": "Embed Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Question": {
+      "main": [
+        [
+          {
+            "node": "Qdrant KB Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant KB Search": {
+      "main": [
+        [
+          {
+            "node": "GPT Draft Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Draft Answer": {
+      "main": [
+        [
+          {
+            "node": "Negative Sentiment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Negative Sentiment?": {
+      "main": [
+        [
+          {
+            "node": "Escalate to Human",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Auto-Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate to Human": {
+      "main": [
+        [
+          {
+            "node": "Log to Analytics Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Auto-Reply": {
+      "main": [
+        [
+          {
+            "node": "Log to Analytics Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "4565c8de-bd5e-4aec-b0a6-8deecc724f6e",
+  "id": "f730922c-0e54-419e-9a80-0dbd6a863ce4",
+  "tags": []
+}

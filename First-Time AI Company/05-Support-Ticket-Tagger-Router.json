@@ -1,0 +1,172 @@
+{
+  "name": "FirstAI 05 \u2014 Support Ticket Tagger & Router",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "zendesk-new",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "7993c971-242f-4873-8eec-34912822c896",
+      "name": "Zendesk Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Classify ticket: intent (billing|bug|how-to|cancel|other), urgency (high|med|low), sentiment (pos|neu|neg). Return JSON."
+            },
+            {
+              "content": "={{ $json.body.ticket.subject }}\n\n{{ $json.body.ticket.description }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "8c58a240-f882-4ed8-80e4-a4e2bc99b958",
+      "name": "GPT Classify",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "ticket",
+        "operation": "update",
+        "id": "={{ $('Zendesk Webhook').item.json.body.ticket.id }}",
+        "updateFields": {
+          "tags": "={{ [$json.message.content.intent, $json.message.content.urgency, $json.message.content.sentiment].join(',') }}",
+          "priority": "={{ $json.message.content.urgency==='high'?'urgent':($json.message.content.urgency==='med'?'normal':'low') }}"
+        }
+      },
+      "id": "cdce0eee-2728-4d9f-956f-654f79ed8dd3",
+      "name": "Update Zendesk",
+      "type": "n8n-nodes-base.zendesk",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "5e0e97d3-803d-4e87-b03b-37dfb1e18f3e",
+              "leftValue": "={{ $('GPT Classify').item.json.message.content.intent }}",
+              "rightValue": "cancel",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "f7b883bc-1bec-47e0-98e1-05a69bdd4641",
+      "name": "Cancel/Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#cs-escalations",
+          "mode": "name"
+        },
+        "text": "=:warning: Cancellation intent \u2014 Ticket #{{ $('Zendesk Webhook').item.json.body.ticket.id }}"
+      },
+      "id": "8aed0777-f70d-4488-bad7-f5663dbd1f4a",
+      "name": "Slack Churn Risk",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Zendesk Webhook": {
+      "main": [
+        [
+          {
+            "node": "GPT Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Classify": {
+      "main": [
+        [
+          {
+            "node": "Update Zendesk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Zendesk": {
+      "main": [
+        [
+          {
+            "node": "Cancel/Negative?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel/Negative?": {
+      "main": [
+        [
+          {
+            "node": "Slack Churn Risk",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "f8eee2e7-6bb9-486f-adc6-2009a7896d85",
+  "id": "89ffd4e8-0223-4fa9-9370-634de9cfc261",
+  "tags": []
+}

@@ -1,0 +1,185 @@
+{
+  "name": "GTM 07 \u2014 Competitor & Market Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "e6ac3a36-0bad-4fee-9ba6-77a8ffdd2855",
+      "name": "Daily 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://competitor.com/blog/rss"
+      },
+      "id": "f6a4f42c-b8b3-45ab-9f4e-291896f9fdac",
+      "name": "Competitor RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        460,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://hn.algolia.com/api/v1/search_by_date?query=competitor&tags=story&numericFilters=created_at_i>{{ Math.floor(Date.now()/1000) - 86400 }}"
+      },
+      "id": "66ca822b-7a30-4718-afd4-d95433c5176c",
+      "name": "HN Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "4d4da249-75c4-403a-a5ee-6aa107715454",
+      "name": "Merge Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a PMM. Summarize the last 24h of competitor signals into bullets: Pricing, Feature, Hire, Funding, Other. Skip noise."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "1e33ea65-523b-4936-b436-e6d76d7d72bc",
+      "name": "GPT Daily Digest",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#competitive-intel",
+          "mode": "name"
+        },
+        "text": "=:eyes: Daily competitor digest\n\n{{ $json.message.content }}"
+      },
+      "id": "db307c48-d39f-44b9-bd82-3d9d61877b7d",
+      "name": "Slack Post",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 8am": {
+      "main": [
+        [
+          {
+            "node": "Competitor RSS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HN Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Competitor RSS": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HN Search": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Sources": {
+      "main": [
+        [
+          {
+            "node": "GPT Daily Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Daily Digest": {
+      "main": [
+        [
+          {
+            "node": "Slack Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "e5957cf6-f00b-4326-ba31-2679bc5909b8",
+  "id": "ae9e143d-d494-4faa-a18a-6e9fea298012",
+  "tags": []
+}

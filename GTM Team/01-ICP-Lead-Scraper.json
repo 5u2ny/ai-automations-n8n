@@ -1,0 +1,201 @@
+{
+  "name": "GTM 01 \u2014 ICP Lead Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "9abd79d1-5d27-4877-91fa-7148d84bd781",
+      "name": "Cron Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3dd4ef7a-79e4-4ed8-81fa-28b63ecd4b1f",
+              "name": "industry",
+              "value": "SaaS",
+              "type": "string"
+            },
+            {
+              "id": "4cd9e914-2772-492d-ae52-956c4582eeb6",
+              "name": "headcount_min",
+              "value": "10",
+              "type": "number"
+            },
+            {
+              "id": "d227553b-6be3-48ee-97a7-afe37a5d0050",
+              "name": "headcount_max",
+              "value": "200",
+              "type": "number"
+            },
+            {
+              "id": "5c2669b8-19bf-40ba-a244-a939061ec0fc",
+              "name": "geo",
+              "value": "United States",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "691cdd5f-ad59-4180-b37f-dd98f3743473",
+      "name": "ICP Filters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/v1/mixed_people/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cache-Control",
+              "value": "no-cache"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.APOLLO_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n  \"person_titles\": [\"VP Engineering\",\"CTO\",\"Head of AI\"],\n  \"organization_industry_tag_ids\": [\"{{ $json.industry }}\"],\n  \"person_locations\": [\"{{ $json.geo }}\"],\n  \"per_page\": 25\n}"
+      },
+      "id": "447f6ad2-085e-41b9-801c-1cc09b305abb",
+      "name": "Apollo Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "people",
+        "options": {}
+      },
+      "id": "41e48470-cefb-4c1b-81f2-dcf869c65181",
+      "name": "Split Leads",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "first_name": "={{ $json.first_name }}",
+            "last_name": "={{ $json.last_name }}",
+            "title": "={{ $json.title }}",
+            "company": "={{ $json.organization.name }}",
+            "email": "={{ $json.email }}",
+            "linkedin": "={{ $json.linkedin_url }}",
+            "scraped_at": "={{ $now.toISO() }}"
+          }
+        }
+      },
+      "id": "73ad9084-7b32-40d7-94d0-971ba036b4b8",
+      "name": "Append to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Cron Daily": {
+      "main": [
+        [
+          {
+            "node": "ICP Filters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ICP Filters": {
+      "main": [
+        [
+          {
+            "node": "Apollo Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apollo Search": {
+      "main": [
+        [
+          {
+            "node": "Split Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Leads": {
+      "main": [
+        [
+          {
+            "node": "Append to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "8bbeb00d-d6ed-49f6-be10-25cb5742c446",
+  "id": "197927ac-ffe0-4da1-aa84-97be2ea323c6",
+  "tags": []
+}

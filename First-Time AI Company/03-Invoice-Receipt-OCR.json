@@ -1,0 +1,175 @@
+{
+  "name": "FirstAI 03 \u2014 Invoice / Receipt OCR",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "q": "has:attachment filename:pdf -label:processed"
+        }
+      },
+      "id": "79c1bb00-83db-4842-be04-ea745df6b258",
+      "name": "Finance Inbox Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "id": "53faeeeb-bcd0-4f49-9422-c8baeec1b7bd",
+      "name": "Download Attachment",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "text": "Extract JSON {vendor, invoice_number, date, currency, subtotal, tax, total, line_items:[{desc,qty,amount}]}. Numbers as numbers.",
+        "binaryPropertyName": "attachment_0"
+      },
+      "id": "55c119fd-1297-4e96-80ff-5e040de137c5",
+      "name": "GPT-Vision Extract",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "InvoiceReview",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "vendor": "={{ $json.message.content.vendor }}",
+            "total": "={{ $json.message.content.total }}",
+            "currency": "={{ $json.message.content.currency }}",
+            "invoice_number": "={{ $json.message.content.invoice_number }}",
+            "date": "={{ $json.message.content.date }}",
+            "approved": "FALSE"
+          }
+        }
+      },
+      "id": "84042359-205c-4846-b755-77a5c86a264c",
+      "name": "Review Queue (Sheet)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#finance",
+          "mode": "name"
+        },
+        "text": "=:receipt: {{ $('GPT-Vision Extract').item.json.message.content.vendor }} \u2014 {{ $('GPT-Vision Extract').item.json.message.content.currency }}{{ $('GPT-Vision Extract').item.json.message.content.total }} (review queue)"
+      },
+      "id": "d4b26cfd-8709-4665-9dc3-84ea9d5c3967",
+      "name": "Slack Finance",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Finance Inbox Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Attachment": {
+      "main": [
+        [
+          {
+            "node": "GPT-Vision Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-Vision Extract": {
+      "main": [
+        [
+          {
+            "node": "Review Queue (Sheet)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Queue (Sheet)": {
+      "main": [
+        [
+          {
+            "node": "Slack Finance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "a884b0d1-b686-472c-a8e3-d75100ca3a8e",
+  "id": "8e46da18-8a60-4979-b6c4-604fd0330cad",
+  "tags": []
+}

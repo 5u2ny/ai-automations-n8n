@@ -1,0 +1,394 @@
+{
+  "name": "FirstAI 13 \u2014 Multi-Source Knowledge Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "171bd5e9-400d-43a8-a310-f6700d1d6043",
+      "name": "Hourly Ingest",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "general",
+          "mode": "name"
+        },
+        "limit": 50,
+        "filters": {
+          "oldest": "={{ Math.floor(($now.minus({hours:1})).toSeconds()) }}"
+        }
+      },
+      "id": "f4122d1a-0f94-48f2-8ac7-540752187c98",
+      "name": "Slack Recent Threads",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.zoom.us/v2/users/me/recordings?from={{ $now.minus({hours:1}).toFormat('yyyy-MM-dd') }}"
+      },
+      "id": "a9002def-60b4-4974-b9e7-b9d2776b57c0",
+      "name": "Zoom Recent Recordings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "filters": {
+          "q": "in:sent newer_than:1h"
+        },
+        "limit": 20
+      },
+      "id": "0dbc2ea7-9213-4ed4-9968-adb81d4843ab",
+      "name": "Email Sent Recent",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        400,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "691039a3-a18f-4a70-847d-a9ffefc42699",
+      "name": "Merge Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        600,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto=require('crypto');\nconst items=$input.all().map(i=>{\n  const j=i.json;\n  const text=j.text||j.transcript||j.snippet||j.body||'';\n  const id=crypto.createHash('sha1').update(text).digest('hex');\n  return {json:{id, text:text.slice(0,4000), source:j.source_type||'unknown', ts:j.ts||new Date().toISOString()}};\n});\nreturn items.filter(i=>i.json.text.length>50);"
+      },
+      "id": "e695fb23-1c25-4787-abe9-019c2a0d7c13",
+      "name": "Normalize + Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "6363db22-799a-44c4-93ea-9f2d1b505641",
+      "name": "Embed",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "company_knowledge",
+          "mode": "list"
+        }
+      },
+      "id": "79e4fc65-8b47-40ab-96be-921a81c3db15",
+      "name": "Qdrant Upsert",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "114b2924-741e-4bb0-a5ea-ffa4febdf926",
+      "name": "Daily 6pm",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "company_knowledge",
+          "mode": "list"
+        },
+        "prompt": "What decisions, lessons, and insights did the company create today?",
+        "topK": 40
+      },
+      "id": "ca0d74d6-55ff-4502-abf3-a3ec71db9815",
+      "name": "Query Today's Knowledge",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        400,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Synthesize a 'What we learned today' digest. Sections: Decisions, Lessons, Open Questions, Notable Customer Quotes. Cite source type for each bullet."
+            },
+            {
+              "content": "={{ JSON.stringify($json.documents) }}"
+            }
+          ]
+        }
+      },
+      "id": "fed0e878-c07d-465c-87f2-05d2a8b985de",
+      "name": "GPT Daily Digest",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        600,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#knowledge",
+          "mode": "name"
+        },
+        "text": "=:brain: Today's company knowledge\n\n{{ $json.message.content }}"
+      },
+      "id": "11044fbf-e1c6-4abf-8b9f-5350fb6143ec",
+      "name": "Post #knowledge",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_KNOWLEDGE_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Knowledge {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "Body|rich_text",
+              "textContent": "={{ $('GPT Daily Digest').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "fb0adbc5-c284-4b2c-8364-9e8754cc13f1",
+      "name": "Archive Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        550
+      ]
+    }
+  ],
+  "connections": {
+    "Hourly Ingest": {
+      "main": [
+        [
+          {
+            "node": "Slack Recent Threads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Zoom Recent Recordings",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Sent Recent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Recent Threads": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zoom Recent Recordings": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Email Sent Recent": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Sources": {
+      "main": [
+        [
+          {
+            "node": "Normalize + Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize + Hash": {
+      "main": [
+        [
+          {
+            "node": "Embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 6pm": {
+      "main": [
+        [
+          {
+            "node": "Query Today's Knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Today's Knowledge": {
+      "main": [
+        [
+          {
+            "node": "GPT Daily Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT Daily Digest": {
+      "main": [
+        [
+          {
+            "node": "Post #knowledge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Archive Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "6440fb55-dca5-42e9-a96a-5de1385b7185",
+  "id": "b27dc4cb-0af7-4618-9c5e-facb48093e45",
+  "tags": []
+}
