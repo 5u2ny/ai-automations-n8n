@@ -79,12 +79,13 @@ See [SETUP-CHECKLIST.md](SETUP-CHECKLIST.md) for the complete credential matrix,
 
 ## Validation
 
-All 26 workflows were imported into a live `n8nio/n8n:latest` Docker container via `n8n import:workflow` — every workflow loads with all nodes recognized and connections intact.
+All 36 workflows were imported into a live `n8nio/n8n:latest` Docker container via `n8n import:workflow` — every workflow loads with all nodes recognized and connections intact.
 
 ## Rollout suggestions
 
 - **GTM team:** start with 04 (Inbound Qualifier) → 02 (Cold Email) → 06 (Content Repurposing). That covers inbound, outbound, and brand in ~2 weeks.
 - **First-time AI:** start with 02 (Email Triage) → 04 (Meeting Action Items) → 01 (Internal RAG). All three are reversible, internal-only, and produce a visible weekly metric for the exec sponsor.
+- **Product Manager:** start with 03 (PRD Draft Generator) → 01 (Feedback Triage Hub) → 09 (Release Notes). PRD generator earns trust fast; Feedback Hub becomes the data layer everything else runs on; Release Notes ships every Friday and locks in cadence.
 
 ## License
 
