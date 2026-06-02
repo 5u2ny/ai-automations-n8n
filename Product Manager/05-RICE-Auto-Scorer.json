@@ -1,0 +1,392 @@
+{
+  "name": "PM 05 \u2014 RICE Auto-Scorer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "notion-idea",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "c803c9d2-e4ce-4669-8542-1060698e7e0e",
+      "name": "Notion Idea Created",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "get",
+        "pageId": "={{ $json.body.page_id }}"
+      },
+      "id": "b6751e2f-970f-40d7-a35c-1d1adee772bf",
+      "name": "Get Idea",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "488814c7-a194-4e06-8854-ce1a6137b69c",
+      "name": "Embed Idea",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "feedback_index",
+          "mode": "list"
+        },
+        "prompt": "={{ $('Get Idea').item.json.properties.Name.title[0].plain_text }}",
+        "topK": 20
+      },
+      "id": "dce40050-87c2-4721-b23b-98a5b14d084b",
+      "name": "Related Feedback Hits",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        800,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"query($s:String!){ issues(filter:{title:{contains:$s}}){nodes{id estimate priority}} }\",\n \"variables\":{\"s\":\"{{ $('Get Idea').item.json.properties.Name.title[0].plain_text }}\"}\n}"
+      },
+      "id": "7657e373-2841-410d-b27e-41fa01bec2cb",
+      "name": "Linked Tickets Count",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_ARR_SHEET",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "AccountRequests",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "feature",
+              "lookupValue": "={{ $('Get Idea').item.json.properties.Name.title[0].plain_text }}"
+            }
+          ]
+        }
+      },
+      "id": "53a54b10-f213-448f-b157-ab4fe360cc3e",
+      "name": "Revenue Tied (Sheet)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "c1063aac-c632-4c6b-a6eb-8cebc772a103",
+      "name": "Merge Evidence",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Compute RICE score. Return JSON {reach:int, impact:0.25|0.5|1|2|3, confidence:0-100, effort_person_months:float, rice_score:float, reasoning, top_evidence:[3 quotes]}."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "ba363fc5-e81f-4bd8-8dcd-6abb68b20215",
+      "name": "Compute RICE",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $('Get Idea').item.json.id }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Reach|number",
+              "numberValue": "={{ $json.message.content.reach }}"
+            },
+            {
+              "key": "Impact|number",
+              "numberValue": "={{ $json.message.content.impact }}"
+            },
+            {
+              "key": "Confidence|number",
+              "numberValue": "={{ $json.message.content.confidence }}"
+            },
+            {
+              "key": "Effort|number",
+              "numberValue": "={{ $json.message.content.effort_person_months }}"
+            },
+            {
+              "key": "RICE|number",
+              "numberValue": "={{ $json.message.content.rice_score }}"
+            },
+            {
+              "key": "Reasoning|rich_text",
+              "textContent": "={{ $json.message.content.reasoning }}"
+            }
+          ]
+        }
+      },
+      "id": "56fbcfe9-8a08-45a0-9ebc-46eeb100d0f7",
+      "name": "Update Notion RICE",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "139b9b9b-32b9-44e0-b275-74366ce3b993",
+              "leftValue": "={{ $('Compute RICE').item.json.message.content.rice_score }}",
+              "rightValue": 50,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ]
+        }
+      },
+      "id": "18e64b13-cf64-47d4-a864-ba9bca9de39f",
+      "name": "High Score?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "product-leads",
+          "mode": "name"
+        },
+        "text": "=:dart: High-RICE idea: *{{ $('Get Idea').item.json.properties.Name.title[0].plain_text }}* \u2014 score {{ $('Compute RICE').item.json.message.content.rice_score }}. Top evidence: {{ $('Compute RICE').item.json.message.content.top_evidence.join(' | ') }}"
+      },
+      "id": "f2e7010e-0ef1-4997-b2e6-f7d857e71ecf",
+      "name": "DM PM Lead",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Notion Idea Created": {
+      "main": [
+        [
+          {
+            "node": "Get Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Idea": {
+      "main": [
+        [
+          {
+            "node": "Embed Idea",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Linked Tickets Count",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Revenue Tied (Sheet)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Idea": {
+      "main": [
+        [
+          {
+            "node": "Related Feedback Hits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Related Feedback Hits": {
+      "main": [
+        [
+          {
+            "node": "Merge Evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linked Tickets Count": {
+      "main": [
+        [
+          {
+            "node": "Merge Evidence",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Revenue Tied (Sheet)": {
+      "main": [
+        [
+          {
+            "node": "Merge Evidence",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Evidence": {
+      "main": [
+        [
+          {
+            "node": "Compute RICE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute RICE": {
+      "main": [
+        [
+          {
+            "node": "Update Notion RICE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Notion RICE": {
+      "main": [
+        [
+          {
+            "node": "High Score?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Score?": {
+      "main": [
+        [
+          {
+            "node": "DM PM Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "43c477ae-2cef-453d-a315-3df76eecfc63",
+  "id": "7c575065-ec58-4d93-af52-d1cbfe030411",
+  "tags": []
+}

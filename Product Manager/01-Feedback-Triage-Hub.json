@@ -1,0 +1,485 @@
+{
+  "name": "PM 01 \u2014 Feedback Triage Hub",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "3baf8d41-0c3d-427c-9317-bc13af6c4547",
+      "name": "Hourly Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.intercom.io/conversations/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "4d41706e-a3cc-4491-b279-c16a9e24dc2e",
+      "name": "Intercom Convos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "ticket",
+        "operation": "getAll",
+        "filters": {
+          "query": "created>1h status:open"
+        },
+        "limit": 50
+      },
+      "id": "669c9e54-101d-4b0f-896f-221780fd584e",
+      "name": "Zendesk Tickets",
+      "type": "n8n-nodes-base.zendesk",
+      "typeVersion": 1,
+      "position": [
+        400,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://itunes.apple.com/us/rss/customerreviews/id=YOUR_APP_ID/json"
+      },
+      "id": "5d710876-956c-4b4b-8c80-27f011137457",
+      "name": "App Store Reviews",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "feedback",
+          "mode": "name"
+        },
+        "limit": 50
+      },
+      "id": "57335d75-1eb6-4e6d-88b5-51424b2a902f",
+      "name": "Slack #feedback",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "67947ec5-00eb-4714-b083-bf5132581728",
+      "name": "Merge Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i=>{const j=i.json;return{json:{source:j.source_type||'unknown',text:j.text||j.body||j.message||'',user:j.user||j.author||'anon',ts:j.ts||new Date().toISOString()}}}).filter(i=>i.json.text.length>10);"
+      },
+      "id": "b05dbaa5-3214-45ba-abbe-955671637d10",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Classify feedback. Return JSON {type:bug|feature|ux|positive|noise, severity:low|med|high, summary:1-line, area}."
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "0be7aa37-09e8-4c38-b0fc-76d30d03193e",
+      "name": "Classify",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "34a4fb77-f664-46db-b234-2d9275b42522",
+              "leftValue": "={{ $json.message.content.type }}",
+              "rightValue": "noise",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "1e074224-9593-4f3d-8b4a-be7310c52d87",
+      "name": "Skip Noise?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "4f7c6f09-3a2d-4580-a2df-baa2233e6068",
+      "name": "Embed Summary",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "feedback_index",
+          "mode": "list"
+        },
+        "prompt": "={{ $('Classify').item.json.message.content.summary }}",
+        "topK": 1
+      },
+      "id": "21493a18-1b7e-4a8f-9e71-a11f343ddd48",
+      "name": "Qdrant Dedup",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "3f8449c1-9099-45dd-91ff-2953137eb9fe",
+              "leftValue": "={{ $json.documents.length > 0 && $json.documents[0].score > 0.88 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "222ed426-92c6-41ad-8cae-5262832c913e",
+      "name": "Duplicate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"mutation($id:String!,$body:String!){ commentCreate(input:{issueId:$id,body:$body}){success} }\",\n \"variables\":{\"id\":\"{{ $json.documents[0].metadata.linear_id }}\",\"body\":\"Another report: {{ $('Normalize').item.json.text }}\"}\n}"
+      },
+      "id": "22dacf9b-eca0-42af-b3e4-366bfbe643f6",
+      "name": "Comment on Existing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"mutation($t:String!,$d:String!){ issueCreate(input:{teamId:\\\"YOUR_TEAM\\\",title:$t,description:$d}){issue{id identifier}} }\",\n \"variables\":{\"t\":\"{{ $('Classify').item.json.message.content.summary }}\",\"d\":\"Source: {{ $('Normalize').item.json.source }}\\nFrom: {{ $('Normalize').item.json.user }}\\n\\n{{ $('Normalize').item.json.text }}\"}\n}"
+      },
+      "id": "5efc51bd-2430-4670-8762-20780cdc1c20",
+      "name": "Create Linear Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "feedback_index",
+          "mode": "list"
+        }
+      },
+      "id": "97c1188d-9355-4418-abcf-db4f63ba390c",
+      "name": "Index New",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Hourly Trigger": {
+      "main": [
+        [
+          {
+            "node": "Intercom Convos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Zendesk Tickets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "App Store Reviews",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack #feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intercom Convos": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zendesk Tickets": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "App Store Reviews": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Slack #feedback": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge Sources": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify": {
+      "main": [
+        [
+          {
+            "node": "Skip Noise?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Noise?": {
+      "main": [
+        [
+          {
+            "node": "Embed Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Summary": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Dedup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Dedup": {
+      "main": [
+        [
+          {
+            "node": "Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Comment on Existing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Linear Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Linear Ticket": {
+      "main": [
+        [
+          {
+            "node": "Index New",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "75aced78-729a-4724-91b4-98e1ee784422",
+  "id": "56154aca-fd7b-4296-815b-0b7316af5ad0",
+  "tags": []
+}

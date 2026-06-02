@@ -1,0 +1,368 @@
+{
+  "name": "PM 08 \u2014 Experiment Result Auto-Writer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "exp-end",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "f06f10b0-bb76-4c1f-a5ea-8cb6daa083b1",
+      "name": "Experiment End Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.growthbook.io/api/v1/experiments/{{ $json.body.experiment_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "a2a5c4c0-7841-425b-a6d5-d485f172656e",
+      "name": "Get Experiment Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://amplitude.com/api/2/events/segmentation?e={\"event_type\":\"{{ $json.metric_event }}\"}&segmentDefinitions=[{\"prop\":\"experiment_variant\"}]"
+      },
+      "id": "042841f6-81a3-4846-9b16-1db1f77554be",
+      "name": "Amplitude Variant Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://mixpanel.com/api/2.0/segmentation?event={{ $('Get Experiment Meta').item.json.metric_event }}&on=properties[\"variant\"]"
+      },
+      "id": "b86227ba-f04a-498c-beb1-2019b940ecd0",
+      "name": "Mixpanel Variant Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "7be82e31-bdaa-4b5c-a895-ad3da4f6b39a",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$input.all().map(i=>i.json);\nconst control=r.find(x=>x.variant==='control')||{};\nconst treatment=r.find(x=>x.variant==='treatment')||{};\nconst lift=((treatment.metric||0)-(control.metric||0))/(control.metric||1);\nreturn[{json:{control,treatment,lift_pct:lift*100,sample:(control.n||0)+(treatment.n||0)}}];"
+      },
+      "id": "4ff2c377-f7ce-45ea-862e-8a6f8ef1e091",
+      "name": "Compute Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a launch decision memo. Sections: TL;DR (ship/iterate/kill), Metric movement, Confidence (note if sample low), Segments worth noting, Risks, Recommendation."
+            },
+            {
+              "content": "=Experiment: {{ $('Get Experiment Meta').item.json.name }}\nHypothesis: {{ $('Get Experiment Meta').item.json.hypothesis }}\nResults: {{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "85131ed5-e24c-4ae4-88da-9348eb36f567",
+      "name": "Decision Memo",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "From the memo, return JSON {decision:ship|iterate|kill, lift_pct, confidence:low|med|high}."
+            },
+            {
+              "content": "={{ $json.message.content }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "7a246aad-4e11-49a5-9b0a-531a957f03fc",
+      "name": "Extract Decision",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_EXPERIMENTS_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "={{ $('Get Experiment Meta').item.json.name }}"
+            },
+            {
+              "key": "Decision|select",
+              "selectValue": "={{ $json.message.content.decision }}"
+            },
+            {
+              "key": "Lift|number",
+              "numberValue": "={{ $json.message.content.lift_pct }}"
+            },
+            {
+              "key": "Confidence|select",
+              "selectValue": "={{ $json.message.content.confidence }}"
+            },
+            {
+              "key": "Memo|rich_text",
+              "textContent": "={{ $('Decision Memo').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "051d49d1-b537-4d88-8249-7ea4aec3caa7",
+      "name": "Notion Experiment DB",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "experiments",
+          "mode": "name"
+        },
+        "text": "=:bar_chart: *{{ $('Get Experiment Meta').item.json.name }}* \u2014 Decision: *{{ $('Extract Decision').item.json.message.content.decision }}* (lift {{ $('Extract Decision').item.json.message.content.lift_pct.toFixed(1) }}%, confidence {{ $('Extract Decision').item.json.message.content.confidence }})\n\n{{ $('Decision Memo').item.json.message.content }}"
+      },
+      "id": "afb7e063-83f2-440a-ba20-4b0b947d5b64",
+      "name": "Slack #experiments",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"mutation($t:String!,$d:String!){ issueCreate(input:{teamId:\\\"YOUR_TEAM\\\",title:$t,description:$d}){issue{identifier}} }\",\n \"variables\":{\"t\":\"Follow-up: {{ $('Get Experiment Meta').item.json.name }} ({{ $('Extract Decision').item.json.message.content.decision }})\",\"d\":\"{{ $('Decision Memo').item.json.message.content }}\"}\n}"
+      },
+      "id": "3131f950-5f04-4401-abed-0f5bafd397ac",
+      "name": "Create Follow-Up Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Experiment End Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Experiment Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Experiment Meta": {
+      "main": [
+        [
+          {
+            "node": "Amplitude Variant Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mixpanel Variant Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Amplitude Variant Metrics": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mixpanel Variant Metrics": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Compute Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Stats": {
+      "main": [
+        [
+          {
+            "node": "Decision Memo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Memo": {
+      "main": [
+        [
+          {
+            "node": "Extract Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Decision": {
+      "main": [
+        [
+          {
+            "node": "Notion Experiment DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion Experiment DB": {
+      "main": [
+        [
+          {
+            "node": "Slack #experiments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack #experiments": {
+      "main": [
+        [
+          {
+            "node": "Create Follow-Up Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "c74c1471-ec75-431e-81d5-267bd2a84bf7",
+  "id": "4798e23d-8bed-4c83-a0c1-9ec9599a0b30",
+  "tags": []
+}

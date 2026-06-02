@@ -1,0 +1,409 @@
+{
+  "name": "PM 07 \u2014 Product Anomaly Watcher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "9000efd8-13cf-4a66-91a3-ae35051b21d3",
+      "name": "Daily 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://amplitude.com/api/2/funnels?e=[{\"event_type\":\"Signup\"}]&start={{ $now.minus({days:8}).toFormat('yyyyMMdd') }}&end={{ $now.toFormat('yyyyMMdd') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth"
+      },
+      "id": "3be33b78-3bee-43ac-8823-4b9884d91875",
+      "name": "Amplitude Funnels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://mixpanel.com/api/2.0/funnels?from_date={{ $now.minus({days:8}).toFormat('yyyy-MM-dd') }}&to_date={{ $now.toFormat('yyyy-MM-dd') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth"
+      },
+      "id": "dabe32e9-92c4-4eb4-8f92-bb792fc0dac0",
+      "name": "Mixpanel Funnels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "d5dfa8e1-b481-473f-932e-2e79aa22c09d",
+      "name": "Merge Metrics",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows=$input.all().map(i=>i.json);\nconst today=rows[rows.length-1];\nconst baseline=rows.slice(0,-1);\nconst avg=baseline.reduce((a,b)=>a+(b.conversion||0),0)/Math.max(1,baseline.length);\nconst delta=((today.conversion||0)-avg)/(avg||1);\nreturn [{json:{today, baseline_avg:avg, delta_pct:delta*100, anomaly:Math.abs(delta)>0.1}}];"
+      },
+      "id": "5e3fe16a-6c1b-46e8-91d0-f9069a89102f",
+      "name": "Compute Baseline Diff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "dda64afd-7380-49c6-8f65-37a942ec027a",
+              "leftValue": "={{ $json.anomaly }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "76873f55-d900-44ff-9483-ad4d27a4cdea",
+      "name": "Is Anomaly?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"{ issues(filter:{state:{type:{eq:\\\"completed\\\"}},completedAt:{gte:\\\"{{ $now.minus({days:2}).toISO() }}\\\"}}){nodes{title identifier url completedAt}} }\"\n}"
+      },
+      "id": "960af0fc-b324-45d4-8fe9-44fd6d4696b2",
+      "name": "Recent Releases",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Funnel drop detected. Given recent shipped tickets, hypothesize the likely cause and propose a quick check. Return JSON {hypothesis, suspect_ticket, validation_query}."
+            },
+            {
+              "content": "=Today: {{ $('Compute Baseline Diff').item.json.today }}\nBaseline avg: {{ $('Compute Baseline Diff').item.json.baseline_avg }}\nDelta: {{ $('Compute Baseline Diff').item.json.delta_pct }}%\n\nRecent tickets: {{ $json.data.issues.nodes }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "2ca59d5f-d466-4475-912e-504304066cb4",
+      "name": "Hypothesize Cause",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "product-alerts",
+          "mode": "name"
+        },
+        "text": "=:warning: Funnel anomaly \u2014 *{{ $('Compute Baseline Diff').item.json.delta_pct.toFixed(1) }}%* vs 7d avg.\n\nHypothesis: {{ $json.message.content.hypothesis }}\nSuspect ticket: {{ $json.message.content.suspect_ticket }}\nSuggested validation: {{ $json.message.content.validation_query }}"
+      },
+      "id": "783d08b7-ad7e-4d34-ac36-84eb00627d87",
+      "name": "Slack #product-alerts",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_ANOMALY_LOG_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Anomaly {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "Delta|number",
+              "numberValue": "={{ $('Compute Baseline Diff').item.json.delta_pct }}"
+            },
+            {
+              "key": "Hypothesis|rich_text",
+              "textContent": "={{ $('Hypothesize Cause').item.json.message.content.hypothesis }}"
+            }
+          ]
+        }
+      },
+      "id": "e862d15c-dedd-48b6-8fb2-2477a9496fc3",
+      "name": "Log Anomaly",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_METRICS_SHEET",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "DailyHealth",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $now.toFormat('yyyy-MM-dd') }}",
+            "conversion": "={{ $('Compute Baseline Diff').item.json.today.conversion }}",
+            "status": "OK"
+          }
+        }
+      },
+      "id": "9cfdbd4b-3c15-4d32-b106-22bccfa32ec7",
+      "name": "All-Clear Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "metrics",
+          "mode": "name"
+        },
+        "text": "=:white_check_mark: All funnels within 10% of 7d avg."
+      },
+      "id": "97d2a4cc-56f6-47c4-8224-c12112af8fad",
+      "name": "Slack #metrics-ok",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 8am": {
+      "main": [
+        [
+          {
+            "node": "Amplitude Funnels",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mixpanel Funnels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Amplitude Funnels": {
+      "main": [
+        [
+          {
+            "node": "Merge Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mixpanel Funnels": {
+      "main": [
+        [
+          {
+            "node": "Merge Metrics",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Metrics": {
+      "main": [
+        [
+          {
+            "node": "Compute Baseline Diff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Baseline Diff": {
+      "main": [
+        [
+          {
+            "node": "Is Anomaly?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Anomaly?": {
+      "main": [
+        [
+          {
+            "node": "Recent Releases",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All-Clear Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recent Releases": {
+      "main": [
+        [
+          {
+            "node": "Hypothesize Cause",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hypothesize Cause": {
+      "main": [
+        [
+          {
+            "node": "Slack #product-alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack #product-alerts": {
+      "main": [
+        [
+          {
+            "node": "Log Anomaly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All-Clear Log": {
+      "main": [
+        [
+          {
+            "node": "Slack #metrics-ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "71496675-320b-4857-972a-3c5147498cd3",
+  "id": "9af1868f-2168-401f-9dad-d4ac2535eb33",
+  "tags": []
+}

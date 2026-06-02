@@ -1,0 +1,453 @@
+{
+  "name": "PM 10 \u2014 Sprint Retro Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 16 * * 5/14"
+            }
+          ]
+        }
+      },
+      "id": "56454037-1d46-41c5-a3f2-fa44c767a4bd",
+      "name": "Sprint End (every 2w)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"{ issues(filter:{completedAt:{gte:\\\"{{ $now.minus({days:14}).toISO() }}\\\"}}){nodes{title state{name} estimate priority labels{nodes{name}}}} }\"\n}"
+      },
+      "id": "65373151-6413-4db8-a9a0-6b7f7da77031",
+      "name": "Linear Velocity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"{ issues(filter:{state:{type:{eq:\\\"started\\\"}},createdAt:{lte:\\\"{{ $now.minus({days:14}).toISO() }}\\\"}}){nodes{title estimate}} }\"\n}"
+      },
+      "id": "63a322e9-5fbf-49aa-9f24-c0a39698be07",
+      "name": "Linear Carryover",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://YOUR_ORG.atlassian.net/rest/api/3/search?jql=sprint in closedSprints() AND resolved >= -14d",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth"
+      },
+      "id": "e5467df9-485b-47a2-82c9-4d1cf3d39580",
+      "name": "Jira Sprint Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "squad-alpha",
+          "mode": "name"
+        },
+        "limit": 100,
+        "filters": {
+          "oldest": "={{ Math.floor($now.minus({days:14}).toSeconds()) }}"
+        }
+      },
+      "id": "abe4e811-c689-48b4-a073-c78d1a777f41",
+      "name": "Slack Squad Vibes",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "c97f33b4-f03d-421c-99dc-ad1856542dd1",
+      "name": "Merge All",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        600,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const all=$input.all().map(i=>i.json);\nconst done=all.filter(x=>x.state?.name==='Done'||x.state?.name==='Completed');\nconst velocity=done.reduce((a,b)=>a+(b.estimate||0),0);\nconst bugs=done.filter(x=>(x.labels?.nodes||[]).some(l=>l.name==='bug')).length;\nconst carry=all.filter(x=>x.state?.name==='In Progress').length;\nreturn[{json:{velocity,bugs,carry,tickets_done:done.length}}];"
+      },
+      "id": "1dfba380-06dd-4ee6-bcdd-6f03b33841f6",
+      "name": "Compute Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Scan squad Slack messages for sentiment signals (frustration, win callouts, blockers). Return JSON {wins:[...], pains:[...], blockers:[...], overall_mood:pos|neu|neg}."
+            },
+            {
+              "content": "={{ JSON.stringify($('Slack Squad Vibes').all().map(i=>i.json.text)) }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "d0a05fc4-fcb1-47fd-8560-4b1cf131e0ee",
+      "name": "Sentiment Scan",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a sprint retro doc. Sections: TL;DR, Metrics (velocity, bugs, carryover), What worked (3 bullets), What didn't (3 bullets), Experiments to try (3), Action items with owners."
+            },
+            {
+              "content": "=Metrics: {{ JSON.stringify($('Compute Metrics').item.json) }}\nSentiment: {{ JSON.stringify($json.message.content) }}"
+            }
+          ]
+        }
+      },
+      "id": "903fb0ba-edd4-46d4-9be0-cd042e2226ac",
+      "name": "Retro Doc",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_RETROS_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Retro {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "Velocity|number",
+              "numberValue": "={{ $('Compute Metrics').item.json.velocity }}"
+            },
+            {
+              "key": "Bugs|number",
+              "numberValue": "={{ $('Compute Metrics').item.json.bugs }}"
+            },
+            {
+              "key": "Carryover|number",
+              "numberValue": "={{ $('Compute Metrics').item.json.carry }}"
+            },
+            {
+              "key": "Mood|select",
+              "selectValue": "={{ $('Sentiment Scan').item.json.message.content.overall_mood }}"
+            },
+            {
+              "key": "Doc|rich_text",
+              "textContent": "={{ $json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "0486622c-1b86-46d4-8201-d8778651121f",
+      "name": "Notion Retro Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "squad-alpha",
+          "mode": "name"
+        },
+        "text": "=:repeat: *Sprint retro doc ready*\n\nVelocity: {{ $('Compute Metrics').item.json.velocity }} pts | Bugs: {{ $('Compute Metrics').item.json.bugs }} | Carryover: {{ $('Compute Metrics').item.json.carry }}\nMood: {{ $('Sentiment Scan').item.json.message.content.overall_mood }}\n\n{{ $('Retro Doc').item.json.message.content }}\n\nReact :+1: to confirm action items or \ud83d\udcac to discuss."
+      },
+      "id": "49ac04d4-97c8-49ad-8567-865cc5b8f3bf",
+      "name": "Slack #squad-retro",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"mutation($t:String!,$d:String!){ issueCreate(input:{teamId:\\\"YOUR_TEAM\\\",title:$t,description:$d,labelIds:[\\\"retro-action\\\"]}){issue{identifier}} }\",\n \"variables\":{\"t\":\"Retro action: {{ $now.toFormat('yyyy-MM-dd') }}\",\"d\":\"{{ $('Retro Doc').item.json.message.content }}\"}\n}"
+      },
+      "id": "bdc76a7c-c6da-4b28-85dc-652bff986f91",
+      "name": "Create Action Item Tickets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Sprint End (every 2w)": {
+      "main": [
+        [
+          {
+            "node": "Linear Velocity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Linear Carryover",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Jira Sprint Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack Squad Vibes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear Velocity": {
+      "main": [
+        [
+          {
+            "node": "Merge All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear Carryover": {
+      "main": [
+        [
+          {
+            "node": "Merge All",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Jira Sprint Report": {
+      "main": [
+        [
+          {
+            "node": "Merge All",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Slack Squad Vibes": {
+      "main": [
+        [
+          {
+            "node": "Merge All",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge All": {
+      "main": [
+        [
+          {
+            "node": "Compute Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Metrics": {
+      "main": [
+        [
+          {
+            "node": "Sentiment Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sentiment Scan": {
+      "main": [
+        [
+          {
+            "node": "Retro Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retro Doc": {
+      "main": [
+        [
+          {
+            "node": "Notion Retro Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion Retro Page": {
+      "main": [
+        [
+          {
+            "node": "Slack #squad-retro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack #squad-retro": {
+      "main": [
+        [
+          {
+            "node": "Create Action Item Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "e5d36839-f525-43ac-8768-b27d08d60fd1",
+  "id": "40aa9937-a606-41cb-989d-dd22439f6818",
+  "tags": []
+}

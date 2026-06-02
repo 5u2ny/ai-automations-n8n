@@ -1,0 +1,379 @@
+{
+  "name": "PM 02 \u2014 Interview Synthesis Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "zoom-recording",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "35613a4e-114a-453f-ac69-e8874d15f729",
+      "name": "Zoom Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.payload.object.recording_files[0].download_url }}",
+        "responseFormat": "file"
+      },
+      "id": "9e9e915f-69d7-45f9-baf2-fcce85c15583",
+      "name": "Download Recording",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "data"
+      },
+      "id": "c989854d-2ac1-4704-94a4-fdc6810e589d",
+      "name": "Whisper Transcribe",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract from interview transcript. Return JSON {jtbd:[...], pains:[...], quotes:[{speaker,text,topic}], personas, summary}."
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "f85a4800-f091-4457-ac76-2ca1452f860d",
+      "name": "Tag JTBD + Pains",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "message.content.quotes",
+        "options": {}
+      },
+      "id": "4d020aec-e035-4d9e-a596-0864666e901f",
+      "name": "Split Quotes",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "9ca73b41-de43-48a3-9b2b-d6a41f35fb0c",
+      "name": "Embed Quote",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "interview_quotes",
+          "mode": "list"
+        }
+      },
+      "id": "23ed134a-345a-43a0-9bbc-cb3ffb9ffc24",
+      "name": "Qdrant Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "ff19deb1-5700-4b21-a214-9f5eae520577",
+      "name": "Aggregate Back",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_RESEARCH_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Interview {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "JTBD|rich_text",
+              "textContent": "={{ $('Tag JTBD + Pains').item.json.message.content.jtbd.join('\\n') }}"
+            },
+            {
+              "key": "Pains|rich_text",
+              "textContent": "={{ $('Tag JTBD + Pains').item.json.message.content.pains.join('\\n') }}"
+            },
+            {
+              "key": "Summary|rich_text",
+              "textContent": "={{ $('Tag JTBD + Pains').item.json.message.content.summary }}"
+            }
+          ]
+        }
+      },
+      "id": "264ffe10-7509-4611-96eb-8d5564b6394d",
+      "name": "Research Notion Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Given the new interview plus retrieved similar past quotes, identify recurring patterns. Return 5 bullets."
+            },
+            {
+              "content": "=New interview pains: {{ $('Tag JTBD + Pains').item.json.message.content.pains }}\nQuotes: {{ JSON.stringify($json.data) }}"
+            }
+          ]
+        }
+      },
+      "id": "8b542b81-b505-4615-ab79-5b472ab20fcf",
+      "name": "Cross-Interview Synthesis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1800,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "research",
+          "mode": "name"
+        },
+        "text": "=:microphone: Interview synthesized\n\n*JTBD:* {{ $('Tag JTBD + Pains').item.json.message.content.jtbd.join(', ') }}\n*Pains:* {{ $('Tag JTBD + Pains').item.json.message.content.pains.join(', ') }}\n\n*Patterns:* {{ $json.message.content }}"
+      },
+      "id": "6dc911d5-dd5c-4295-8167-0b409342a58c",
+      "name": "Slack #research",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "=Interview Recording {{ $now.toFormat('yyyy-MM-dd') }}.mp3",
+        "fileContent": "={{ $('Download Recording').item.binary.data.data }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "YOUR_RESEARCH_FOLDER",
+          "mode": "id"
+        }
+      },
+      "id": "5cadc252-d32d-4a80-8b67-1e4b8297b08f",
+      "name": "Tag Recording in Notion",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2000,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Zoom Webhook": {
+      "main": [
+        [
+          {
+            "node": "Download Recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Recording": {
+      "main": [
+        [
+          {
+            "node": "Whisper Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper Transcribe": {
+      "main": [
+        [
+          {
+            "node": "Tag JTBD + Pains",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag JTBD + Pains": {
+      "main": [
+        [
+          {
+            "node": "Split Quotes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Quotes": {
+      "main": [
+        [
+          {
+            "node": "Embed Quote",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Quote": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Store": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Back": {
+      "main": [
+        [
+          {
+            "node": "Research Notion Page",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Cross-Interview Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research Notion Page": {
+      "main": [
+        [
+          {
+            "node": "Tag Recording in Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cross-Interview Synthesis": {
+      "main": [
+        [
+          {
+            "node": "Slack #research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "fae8a638-a36d-4bc0-9720-0747d8ea0f08",
+  "id": "f43d6687-eba5-4d79-89cd-194f2ca4ff63",
+  "tags": []
+}

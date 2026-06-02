@@ -1,0 +1,420 @@
+{
+  "name": "PM 09 \u2014 Release Notes Auto-Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 15 * * 5"
+            }
+          ]
+        }
+      },
+      "id": "9cce8a61-5a94-4a58-8199-f6f86544bbf9",
+      "name": "Friday 3pm",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"{ issues(filter:{state:{type:{eq:\\\"completed\\\"}},completedAt:{gte:\\\"{{ $now.minus({days:7}).toISO() }}\\\"}}){nodes{title identifier labels{nodes{name}} project{name}}} }\"\n}"
+      },
+      "id": "6256a849-46c2-414f-9a53-0e4545b9cd19",
+      "name": "Linear Done This Week",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://YOUR_ORG.atlassian.net/rest/api/3/search?jql=status=Done AND resolved >= -7d",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth"
+      },
+      "id": "0f299911-be57-4bbc-8bf9-3d8cb79c1709",
+      "name": "Jira Done This Week",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "de1ac8c4-226b-4954-86d5-53026e6cceda",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "c61244cd-23d1-4ea8-bf04-4c367cb5e392",
+              "leftValue": "={{ JSON.stringify($json.labels?.nodes||[]) }}",
+              "rightValue": "internal",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ]
+        }
+      },
+      "id": "cec7f0f9-cb66-4d98-af0d-75879c993fa8",
+      "name": "Filter Shippable",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write customer-facing release notes. Friendly tone. Group by theme. Skip internal/infra. Include 1 line on impact for each shipped item."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "83b5efa3-0897-435f-b198-055a6201384c",
+      "name": "Customer Version",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write sales enablement notes. For each shipped item: feature name, target persona, sales talking point, deals it unblocks."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "f897a4ee-4b72-4239-b066-50b33e3967f3",
+      "name": "Sales Version",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write internal release notes for #general. Casual tone. Shoutouts to engineers. Include funny ticket titles."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "1c73d9e0-c62f-481a-98bf-ea14986d9231",
+      "name": "Internal Version",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_RELEASES_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Release {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "Customer Notes|rich_text",
+              "textContent": "={{ $('Customer Version').item.json.message.content }}"
+            },
+            {
+              "key": "Sales Notes|rich_text",
+              "textContent": "={{ $('Sales Version').item.json.message.content }}"
+            },
+            {
+              "key": "Internal Notes|rich_text",
+              "textContent": "={{ $('Internal Version').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "0e1a9eac-e9d9-444c-aa90-9eb8006e24d4",
+      "name": "Notion Release Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_DC.api.mailchimp.com/3.0/campaigns",
+        "sendBody": true,
+        "jsonBody": "={\n \"type\":\"regular\",\n \"recipients\":{\"list_id\":\"YOUR_LIST\"},\n \"settings\":{\"subject_line\":\"What's new this week\",\"from_name\":\"Product\",\"reply_to\":\"product@yourco.com\",\"title\":\"Release {{ $now.toFormat('yyyy-MM-dd') }}\"}\n}"
+      },
+      "id": "b1d22d5d-3d39-4de3-8924-950f75727985",
+      "name": "Mailchimp Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1400,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "sales-enablement",
+          "mode": "name"
+        },
+        "text": "=:rocket: *Shipped this week \u2014 sales notes*\n\n{{ $('Sales Version').item.json.message.content }}"
+      },
+      "id": "d0582a41-e89c-46ce-9a96-78f39b06e1eb",
+      "name": "Slack #sales-enablement",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "general",
+          "mode": "name"
+        },
+        "text": "=:tada: *Shipped this week*\n\n{{ $('Internal Version').item.json.message.content }}"
+      },
+      "id": "309cf29f-1b41-479a-a769-db5a59ae8c4f",
+      "name": "Slack #general",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        550
+      ]
+    }
+  ],
+  "connections": {
+    "Friday 3pm": {
+      "main": [
+        [
+          {
+            "node": "Linear Done This Week",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Jira Done This Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear Done This Week": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira Done This Week": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Filter Shippable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Shippable": {
+      "main": [
+        [
+          {
+            "node": "Customer Version",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Sales Version",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Internal Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Version": {
+      "main": [
+        [
+          {
+            "node": "Notion Release Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion Release Page": {
+      "main": [
+        [
+          {
+            "node": "Mailchimp Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Version": {
+      "main": [
+        [
+          {
+            "node": "Slack #sales-enablement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internal Version": {
+      "main": [
+        [
+          {
+            "node": "Slack #general",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "9e1562c0-446f-4e49-927b-3c62fea96026",
+  "id": "77b0c4bd-02a1-44a4-a4fd-251f46bec95b",
+  "tags": []
+}

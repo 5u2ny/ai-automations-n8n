@@ -1,0 +1,344 @@
+{
+  "name": "PM 04 \u2014 Spec \u2192 Linear Tickets Splitter",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "notion-prd-approved",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "79bc0eb7-b9e6-415c-816d-060fd14d65ec",
+      "name": "Notion Status Change",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "get",
+        "pageId": "={{ $json.body.page_id }}"
+      },
+      "id": "4451b3f1-4c09-4b09-8290-caa08bc14948",
+      "name": "Get PRD Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "blockChildren",
+        "operation": "getAll",
+        "blockId": "={{ $json.id }}"
+      },
+      "id": "036e6c99-f8aa-4021-a235-69f4e62de46c",
+      "name": "Get PRD Blocks",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text=$input.all().map(i=>i.json.paragraph?.rich_text?.[0]?.plain_text||i.json.heading_2?.rich_text?.[0]?.plain_text||'').filter(Boolean).join('\\n');return[{json:{body:text,title:$('Get PRD Page').item.json.properties.Title?.title?.[0]?.plain_text||'PRD'}}];"
+      },
+      "id": "11166696-261a-404d-8cf6-6b19eaff60e2",
+      "name": "Aggregate Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Decompose PRD into engineering tickets. Return JSON {epic_title, tickets:[{title, description, acceptance_criteria:[...], est_pts:1|2|3|5|8, area:frontend|backend|infra|design}]}."
+            },
+            {
+              "content": "={{ $json.body }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "d242aa53-a5d6-4c17-a2d8-d1152f93642c",
+      "name": "Decompose to Tickets",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"mutation($t:String!,$d:String!){ issueCreate(input:{teamId:\\\"YOUR_TEAM\\\",title:$t,description:$d,labelIds:[\\\"epic\\\"]}){issue{id identifier}} }\",\n \"variables\":{\"t\":\"{{ $json.message.content.epic_title }}\",\"d\":\"Auto-generated from PRD\"}\n}"
+      },
+      "id": "99f5d6e7-1cd0-480f-8c82-3fa392d36968",
+      "name": "Create Linear Epic",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "message.content.tickets",
+        "options": {}
+      },
+      "id": "4e7bc659-90fd-4c49-bcf8-d303c1902d34",
+      "name": "Split Tickets",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"mutation($t:String!,$d:String!,$p:Int!,$e:String!){ issueCreate(input:{teamId:\\\"YOUR_TEAM\\\",title:$t,description:$d,estimate:$p,parentId:$e}){issue{id identifier url}} }\",\n \"variables\":{\"t\":\"{{ $json.title }}\",\"d\":\"{{ $json.description }}\\n\\nAC:\\n- {{ $json.acceptance_criteria.join('\\n- ') }}\",\"p\":{{ $json.est_pts }},\"e\":\"{{ $('Create Linear Epic').item.json.data.issueCreate.issue.id }}\"}\n}"
+      },
+      "id": "f2a00285-a7a8-46bf-8c6f-dce70b96b2fe",
+      "name": "Create Linear Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_ORG.atlassian.net/rest/api/3/issue",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "jsonBody": "={\n \"fields\":{\n  \"project\":{\"key\":\"YOUR_PROJECT\"},\n  \"summary\":\"{{ $json.title }}\",\n  \"description\":\"{{ $json.description }}\\nAC: {{ $json.acceptance_criteria.join('; ') }}\",\n  \"issuetype\":{\"name\":\"Story\"}\n }\n}"
+      },
+      "id": "754294c3-03eb-4632-88ca-196ef045fc2a",
+      "name": "Mirror to Jira",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "c4d85f00-cf72-49bd-9696-9ae6c57fdd44",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "engineering",
+          "mode": "name"
+        },
+        "text": "=:link: Epic created: *{{ $('Decompose to Tickets').item.json.message.content.epic_title }}* with {{ $('Decompose to Tickets').item.json.message.content.tickets.length }} child tickets. PRD: {{ $('Get PRD Page').item.json.url }}"
+      },
+      "id": "6b6445ab-f41c-4216-afb3-d9821ba343f0",
+      "name": "Slack #eng",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Notion Status Change": {
+      "main": [
+        [
+          {
+            "node": "Get PRD Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PRD Page": {
+      "main": [
+        [
+          {
+            "node": "Get PRD Blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PRD Blocks": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Body": {
+      "main": [
+        [
+          {
+            "node": "Decompose to Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decompose to Tickets": {
+      "main": [
+        [
+          {
+            "node": "Create Linear Epic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Linear Epic": {
+      "main": [
+        [
+          {
+            "node": "Split Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Tickets": {
+      "main": [
+        [
+          {
+            "node": "Create Linear Issue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mirror to Jira",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Linear Issue": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mirror to Jira": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Slack #eng",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "6f29d899-2f06-49df-aaba-2a12a8b9758e",
+  "id": "e6bc57db-8cf6-4056-8307-d16d0bf61b40",
+  "tags": []
+}

@@ -1,0 +1,455 @@
+{
+  "name": "PM 06 \u2014 Stakeholder Roadmap Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "510e7727-1199-4b8c-b1e5-ff200c7efa49",
+      "name": "Monday 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $env.LINEAR_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={\n \"query\":\"{ issues(filter:{state:{type:{eq:\\\"started\\\"}}}){nodes{title state{name} project{name} estimate}} }\"\n}"
+      },
+      "id": "5ebd5e0e-cdf9-4507-8e96-fe1c5abaace6",
+      "name": "Linear In-Progress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://YOUR_ORG.atlassian.net/rest/api/3/search?jql=type=Epic AND statusCategory=indeterminate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth"
+      },
+      "id": "ba8982f5-374d-4a66-9820-52958e984400",
+      "name": "Jira Active Epics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "1aca15de-41e2-44ef-b309-7c68815592b3",
+      "name": "Merge Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a 1-page roadmap update for SALES. Focus: what's coming this quarter that they can talk about, what's NOT coming so they stop promising it, customer asks now in scope."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "ca343c9e-271f-40b9-a561-acb33e6a44c1",
+      "name": "Sales Version",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a 1-page roadmap update for CUSTOMER SUCCESS. Focus: bug fixes shipping, features that unblock at-risk accounts, KB updates needed."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "b520ef87-3e8c-467f-95a9-ced466d09684",
+      "name": "CS Version",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        800,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a TL;DR roadmap update for EXEC. 5 bullets: top bets, milestones hit, milestones missed, risks, asks. Numbers only when meaningful."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "cd920e0a-cac3-49f9-929e-c2bfea0b0a5c",
+      "name": "Exec Version",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        800,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a roadmap update for ENGINEERING. Focus: priority order, what's blocking, what's been deprioritized and why."
+            },
+            {
+              "content": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "70d51822-324d-4349-ad96-6a99be37297f",
+      "name": "Eng Version",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        800,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "sendTo": "sales-leadership@yourco.com",
+        "subject": "=Roadmap update \u2014 week of {{ $now.toFormat('yyyy-MM-dd') }} (Sales)",
+        "message": "={{ $json.message.content }}",
+        "options": {}
+      },
+      "id": "66561dee-4b61-4c69-8809-c81d0ffd2247",
+      "name": "Email Sales",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "cs-product",
+          "mode": "name"
+        },
+        "text": "=:scroll: *Roadmap update for CS*\n\n{{ $json.message.content }}"
+      },
+      "id": "0b5eced9-a892-48e4-ac76-272736d8cd15",
+      "name": "Slack #cs-product",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "exec",
+          "mode": "name"
+        },
+        "text": "=:scroll: *Roadmap TL;DR*\n\n{{ $json.message.content }}"
+      },
+      "id": "68ac99db-b1a6-4dc3-afb6-3cd17a124bbb",
+      "name": "Slack #exec",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "eng-roadmap",
+          "mode": "name"
+        },
+        "text": "=:scroll: *Eng roadmap update*\n\n{{ $json.message.content }}"
+      },
+      "id": "63838afc-3dbb-460a-a891-abce0f54e6c2",
+      "name": "Slack #eng-roadmap",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_ROADMAP_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "=Roadmap digest {{ $now.toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "key": "Sales|rich_text",
+              "textContent": "={{ $('Sales Version').item.json.message.content }}"
+            },
+            {
+              "key": "CS|rich_text",
+              "textContent": "={{ $('CS Version').item.json.message.content }}"
+            },
+            {
+              "key": "Exec|rich_text",
+              "textContent": "={{ $('Exec Version').item.json.message.content }}"
+            },
+            {
+              "key": "Eng|rich_text",
+              "textContent": "={{ $('Eng Version').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "59200de5-1ea6-463d-867b-cb087870d0fb",
+      "name": "Archive All",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Monday 7am": {
+      "main": [
+        [
+          {
+            "node": "Linear In-Progress",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Jira Active Epics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear In-Progress": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira Active Epics": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Sources": {
+      "main": [
+        [
+          {
+            "node": "Sales Version",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CS Version",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Exec Version",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Eng Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Version": {
+      "main": [
+        [
+          {
+            "node": "Email Sales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CS Version": {
+      "main": [
+        [
+          {
+            "node": "Slack #cs-product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exec Version": {
+      "main": [
+        [
+          {
+            "node": "Slack #exec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Eng Version": {
+      "main": [
+        [
+          {
+            "node": "Slack #eng-roadmap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Sales": {
+      "main": [
+        [
+          {
+            "node": "Archive All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "57d083a6-4283-458d-8408-16ade924b21f",
+  "id": "1d7c87d0-91e8-4763-8d0a-67b1b8e51165",
+  "tags": []
+}

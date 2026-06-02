@@ -1,11 +1,12 @@
 # AI Automations - n8n
 
-26 production-grade n8n workflows for AI startup go-to-market and first-time AI adopters. Hand-built, not aggregated.
+36 production-grade n8n workflows for AI startup go-to-market and first-time AI adopters. Hand-built, not aggregated.
 
 ## Structure
 
 - `GTM Team/` — 13 workflows for AI startup go-to-market (pipeline, outbound, content, revenue).
 - `First-Time AI Company/` — 13 workflows for organizations adopting AI for the first time (safe, internal, high-ROI).
+- `Product Manager/` — 10 complex workflows for the PM operating system (feedback, PRDs, roadmap, experiments, retros).
 
 Each automation ships with two files:
 - `NN-Name.md` — what it does, stack, setup notes.
@@ -48,6 +49,23 @@ Each automation ships with two files:
 | 11 | **Full-Stack Support Copilot** (3 channels, RAG, sentiment routing) | 12 |
 | 12 | **Document Intelligence Hub** (classify + 4-way switch + extractors) | 13 |
 | 13 | **Multi-Source Knowledge Sync** (hourly ingest + daily digest) | 13 |
+
+### Product Manager (all complex, 11–15 nodes)
+
+Stack: Linear + Jira · Amplitude + Mixpanel · Notion · Slack · OpenAI · Qdrant.
+
+| # | Workflow | Nodes |
+|---|---|---|
+| 01 | Feedback Triage Hub (4 sources + Qdrant dedup → Linear) | 15 |
+| 02 | Interview Synthesis Engine (Zoom → Whisper → quote-level Qdrant) | 12 |
+| 03 | PRD Draft Generator (Slack `/prd` → retrieve similar → draft → Notion) | 11 |
+| 04 | Spec → Linear Tickets Splitter (Notion approved → epic + children + Jira mirror) | 11 |
+| 05 | RICE Auto-Scorer (evidence-anchored from feedback + tickets + revenue) | 11 |
+| 06 | Stakeholder Roadmap Digest (4 parallel audience versions) | 13 |
+| 07 | Product Anomaly Watcher (Amplitude + Mixpanel baseline diff + cause hypothesis) | 12 |
+| 08 | Experiment Result Auto-Writer (GrowthBook → decision memo → Linear follow-up) | 11 |
+| 09 | Release Notes Auto-Generator (3 parallel audience versions) | 12 |
+| 10 | Sprint Retro Bot (metrics + Slack sentiment → retro doc + action tickets) | 12 |
 
 ## How to use
 

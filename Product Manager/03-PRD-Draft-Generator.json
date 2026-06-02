@@ -1,0 +1,377 @@
+{
+  "name": "PM 03 \u2014 PRD Draft Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "slack-prd",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      },
+      "id": "0e4294c7-48d2-4ab5-a68a-2a2fe5c813ee",
+      "name": "Slack /prd",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "40dc91b6-6648-4b15-a5e6-0b6093358841",
+              "name": "idea",
+              "value": "={{ $json.body.text }}",
+              "type": "string"
+            },
+            {
+              "id": "da198b88-a8d2-4269-94e4-28383ad3994f",
+              "name": "user",
+              "value": "={{ $json.body.user_name }}",
+              "type": "string"
+            },
+            {
+              "id": "451a3520-b05e-495c-8f85-3169581d2c64",
+              "name": "response_url",
+              "value": "={{ $json.body.response_url }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "7b9d5808-bdd4-4f11-8037-47cf0e03e664",
+      "name": "Parse Idea",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "cbcf2512-0a24-4d92-b518-85ea109caa92",
+      "name": "Embed Idea",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "past_prds",
+          "mode": "list"
+        },
+        "prompt": "={{ $('Parse Idea').item.json.idea }}",
+        "topK": 3
+      },
+      "id": "a167cac0-f805-4afa-a7e3-b3e665e33cc9",
+      "name": "Find Similar PRDs",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Write a PRD with sections: Problem, JTBD, Target user, Hypothesis, Success metrics, In-scope, Out-of-scope, Risks, Open questions. Reference similar past PRDs when applicable."
+            },
+            {
+              "content": "=Idea: {{ $('Parse Idea').item.json.idea }}\nAuthor: {{ $('Parse Idea').item.json.user }}\n\nSimilar past PRDs:\n{{ $json.documents }}"
+            }
+          ]
+        }
+      },
+      "id": "0b17c7d3-057c-4b4d-867c-20a9db085866",
+      "name": "Draft PRD",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract from PRD draft. Return JSON {title, problem_oneliner, success_metric, est_size:S|M|L}."
+            },
+            {
+              "content": "={{ $json.message.content }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "1bcc0b93-297a-4607-8239-837b4ed22f50",
+      "name": "Extract Metadata",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "YOUR_PRD_DB",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Title|title",
+              "title": "={{ $json.message.content.title }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "Draft"
+            },
+            {
+              "key": "Author|rich_text",
+              "textContent": "={{ $('Parse Idea').item.json.user }}"
+            },
+            {
+              "key": "Problem|rich_text",
+              "textContent": "={{ $json.message.content.problem_oneliner }}"
+            },
+            {
+              "key": "Size|select",
+              "selectValue": "={{ $json.message.content.est_size }}"
+            },
+            {
+              "key": "Body|rich_text",
+              "textContent": "={{ $('Draft PRD').item.json.message.content }}"
+            }
+          ]
+        }
+      },
+      "id": "6666e674-1957-47cf-acfe-3594d2374ef0",
+      "name": "Create Notion PRD",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "9ae99993-476d-4c1b-a186-0ea9fd71e95f",
+      "name": "Embed PRD for Future",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "past_prds",
+          "mode": "list"
+        }
+      },
+      "id": "f7833e53-2360-4847-93fe-9c703f01e86f",
+      "name": "Index PRD",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Parse Idea').item.json.response_url }}",
+        "sendBody": true,
+        "jsonBody": "={\n \"response_type\":\"in_channel\",\n \"text\":\"\ud83d\udcdd PRD draft created for *{{ $('Extract Metadata').item.json.message.content.title }}* \u2014 opening in Notion.\\nProblem: {{ $('Extract Metadata').item.json.message.content.problem_oneliner }}\\nSuccess metric: {{ $('Extract Metadata').item.json.message.content.success_metric }}\"\n}"
+      },
+      "id": "fa16f99b-56eb-48fe-8e5e-2aef08f8a140",
+      "name": "Respond in Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1600,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "product",
+          "mode": "name"
+        },
+        "text": "=:memo: New PRD draft from {{ $('Parse Idea').item.json.user }}: *{{ $('Extract Metadata').item.json.message.content.title }}* \u2014 review in Notion."
+      },
+      "id": "e87aa597-fa4e-461c-a7df-f24f274b71d5",
+      "name": "Tag PM Channel",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Slack /prd": {
+      "main": [
+        [
+          {
+            "node": "Parse Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Idea": {
+      "main": [
+        [
+          {
+            "node": "Embed Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Idea": {
+      "main": [
+        [
+          {
+            "node": "Find Similar PRDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Similar PRDs": {
+      "main": [
+        [
+          {
+            "node": "Draft PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft PRD": {
+      "main": [
+        [
+          {
+            "node": "Extract Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Metadata": {
+      "main": [
+        [
+          {
+            "node": "Create Notion PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion PRD": {
+      "main": [
+        [
+          {
+            "node": "Embed PRD for Future",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond in Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed PRD for Future": {
+      "main": [
+        [
+          {
+            "node": "Index PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond in Slack": {
+      "main": [
+        [
+          {
+            "node": "Tag PM Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "f28a46b8-de42-466d-ae7e-4d2810bf1be7",
+  "id": "1a0eb7ba-163b-4aee-b302-cefd29df0c20",
+  "tags": []
+}
