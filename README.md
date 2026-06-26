@@ -2,6 +2,10 @@
 
 36 production-grade n8n workflows for AI startup go-to-market and first-time AI adopters. Hand-built, not aggregated.
 
+## Portfolio Context
+
+This repo is grounded in resume work from ASANIFY and LEADLE: GTM/CRM automation that lifted lead-to-customer conversion by 27%, contributed to a 22% ARR increase, scaled booked meetings by 4x, and lifted marketing-qualified pipeline volume by 35%. The workflows here translate that operating style into reusable n8n systems across GTM, internal AI adoption, and product management.
+
 ## Structure
 
 - `GTM Team/` — 13 workflows for AI startup go-to-market (pipeline, outbound, content, revenue).

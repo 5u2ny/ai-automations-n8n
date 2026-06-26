@@ -9,7 +9,7 @@ Run through this in order. Items I can't do for you are marked **YOU**; items I 
 - [x] Docker installed & running
 - [x] n8n container running at http://localhost:5678
 - [x] Volume `n8n_data` persists workflows across restarts
-- [x] All 20 workflows imported into n8n DB
+- [x] All 36 workflows imported into n8n DB
 - [x] Owner account created (you logged in)
 
 ---
@@ -18,11 +18,11 @@ Run through this in order. Items I can't do for you are marked **YOU**; items I 
 
 I cannot add these for you — they require your account logins / API keys. In n8n: **Settings → Credentials → New**.
 
-Add the ones for the workflows you actually plan to run first (not all 10):
+Add the ones for the workflows you actually plan to run first, not every credential in the repo:
 
 | Credential | Where to get it | Needed by |
 |---|---|---|
-| **OpenAI API** | platform.openai.com → API Keys | All 20 |
+| **OpenAI API** | platform.openai.com → API Keys | All 36 |
 | **Gmail OAuth2** | n8n guides you through Google OAuth | GTM 02, 05, 09 · FirstAI 02, 03 |
 | **Google Sheets/Drive OAuth2** | Same Google OAuth flow | GTM 01, 02 · FirstAI 03, 06 |
 | **Slack OAuth2** | api.slack.com → Create App | GTM 04, 07, 10 · FirstAI 03, 04, 05, 08, 10 |
@@ -32,8 +32,13 @@ Add the ones for the workflows you actually plan to run first (not all 10):
 | **Telegram Bot** | @BotFather on Telegram | GTM 03 |
 | **Qdrant** | Qdrant Cloud or self-hosted URL + key | FirstAI 01 |
 | **Redis** | Local or cloud Redis URL | FirstAI 10 |
+| **Linear / Jira** | Linear and Atlassian app settings | Product Manager workflows |
+| **Amplitude / Mixpanel** | Product analytics workspace API keys | Product Manager workflows |
+| **GrowthBook** | GrowthBook API key | PM 08 |
+| **Apollo / enrichment API** | Vendor dashboard API key | GTM 11 |
+| **GA4 / LinkedIn Ads / retargeting API** | Analytics and ads admin consoles | GTM 12 |
 
-**Recommendation:** start with OpenAI + Slack + Gmail. Those 3 unlock 14 of 20 workflows.
+**Recommendation:** start with OpenAI + Slack + Gmail. Those 3 unlock the easiest email, support, and GTM workflows before you wire the heavier CRM, analytics, and vector-store flows.
 
 ---
 
@@ -52,6 +57,9 @@ For each workflow you want to activate, open the listed node and replace the pla
 - **08 AI Meeting Notes → CRM** → no placeholders
 - **09 Demo Request Pre-Call Brief** → no placeholders (uses Calendly payload)
 - **10 Pipeline Health Reporter** → `Slack #leadership` → `#leadership` · `Archive Notion` → `YOUR_DB`
+- **11 End-to-End Outbound Engine** → `Log to Sheet (Hot)` + `Warm Nurture Sheet` → `YOUR_SHEET_ID` · `Slack AE Reply!` → `#sales-hot`
+- **12 Account-Based Intent Engine** → `GA4 Page Visits` → `YOUR_GA_PROP` · `Queue Email Touch` / `Queue LinkedIn DM` → `YOUR_SHEET_ID` · `Trigger Retarget Ad` → `YOUR_AD_ACCT` · `Slack Hot Accounts` → `#abm`
+- **13 RevOps Forecast Pipeline** → `Slack #exec` → `#exec` · `Archive Notion` → `YOUR_FORECAST_DB`
 
 ### First-Time AI Company
 - **01 Internal RAG QA Bot** → no placeholders (configure Qdrant collection name `company_docs`)
@@ -64,6 +72,21 @@ For each workflow you want to activate, open the listed node and replace the pla
 - **08 Daily Standup Aggregator** → `GitHub Commits` → `YOUR_ORG` + `YOUR_REPO` · `Post #standup` → `#standup`
 - **09 KB Auto-Updater** → `Draft to Notion` → `YOUR_KB_DB`
 - **10 Error Log Summarizer** → `Slack #errors` → `#errors`
+- **11 Full-Stack Support Copilot** → `Escalate to Human` → `#support-escalations` · `Log to Analytics Sheet` → `YOUR_SHEET`
+- **12 Document Intelligence Hub** → `Drive New File` → `YOUR_INBOX_FOLDER` · Notion/Sheets nodes → `YOUR_INBOX_DB`, `YOUR_LEGAL_DB`, `YOUR_AP_SHEET`, `YOUR_ATS_DB` · `Slack Notify Team` → `#docs`
+- **13 Multi-Source Knowledge Sync** → `Post #knowledge` → `#knowledge` · `Archive Notion` → `YOUR_KNOWLEDGE_DB`
+
+### Product Manager
+- **01 Feedback Triage Hub** → feedback source credentials + Qdrant collection + Linear destination
+- **02 Interview Synthesis Engine** → Zoom/Otter source + Qdrant collection + Notion archive
+- **03 PRD Draft Generator** → Slack slash command + Qdrant PRD collection + Notion PRD database
+- **04 Spec to Linear Tickets Splitter** → Notion approved specs + Linear/Jira destinations
+- **05 RICE Auto-Scorer** → feedback, ticket, and revenue sources used as evidence
+- **06 Stakeholder Roadmap Digest** → audience-specific Slack channels and Notion archive
+- **07 Product Anomaly Watcher** → Amplitude/Mixpanel workspace IDs and Slack product channel
+- **08 Experiment Result Auto-Writer** → GrowthBook project + Linear follow-up destination
+- **09 Release Notes Auto-Generator** → release source, customer/internal Slack channels, Notion archive
+- **10 Sprint Retro Bot** → metrics source, Slack sentiment source, retro doc destination
 
 ---
 
