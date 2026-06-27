@@ -1,0 +1,12 @@
+{
+  "name": "ai-automations-n8n",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "readiness": "node scripts/workflow-readiness.mjs --write",
+    "readiness:notes": "node scripts/workflow-readiness.mjs --write --add-notes",
+    "readiness:strict": "node scripts/workflow-readiness.mjs --strict",
+    "import:workflows": "bash scripts/import-workflows.sh"
+  }
+}

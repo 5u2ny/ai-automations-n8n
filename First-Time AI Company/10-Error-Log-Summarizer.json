@@ -1,6 +1,22 @@
 {
-  "name": "FirstAI 10 \u2014 Error Log Summarizer",
+  "name": "FirstAI 10 — Error Log Summarizer",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: FirstAI 10 — Error Log Summarizer\nNodes: 6\nTrigger: Hourly Flush, Sentry Webhook\nCredentials/services: OpenAI, Redis, Slack OAuth\nPlaceholders: #errors\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Sentry Webhook\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-b48990e29e71e956c82d4462",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "path": "sentry-issue",

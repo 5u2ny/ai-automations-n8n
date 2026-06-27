@@ -1,6 +1,22 @@
 {
-  "name": "GTM 10 \u2014 Pipeline Health Reporter",
+  "name": "GTM 10 — Pipeline Health Reporter",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: GTM 10 — Pipeline Health Reporter\nNodes: 6\nTrigger: Monday 7am\nCredentials/services: HubSpot, Notion, OpenAI, Slack OAuth\nPlaceholders: #leadership, YOUR_DB\nEnvironment variables: None detected\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-5348bee25750709498c68869",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "rule": {

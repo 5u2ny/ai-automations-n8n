@@ -1,6 +1,22 @@
 {
-  "name": "GTM 04 \u2014 Inbound Lead Qualifier",
+  "name": "GTM 04 — Inbound Lead Qualifier",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: GTM 04 — Inbound Lead Qualifier\nNodes: 6\nTrigger: Form Webhook\nCredentials/services: Clearbit or enrichment API, HubSpot, OpenAI, Slack OAuth\nPlaceholders: #sales-hot\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Form Webhook\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-d4648f6bfd551d02c4f7c1b1",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "path": "inbound-lead",
@@ -122,7 +138,7 @@
           "value": "#sales-hot",
           "mode": "name"
         },
-        "text": "=:fire: Hot lead \u2014 {{ $('Form Webhook').item.json.body.first_name }} {{ $('Form Webhook').item.json.body.last_name }} at {{ $('Form Webhook').item.json.body.company }}\nScore: {{ $('GPT Score Fit').item.json.message.content.score }}\nReason: {{ $('GPT Score Fit').item.json.message.content.reasoning }}"
+        "text": "=:fire: Hot lead — {{ $('Form Webhook').item.json.body.first_name }} {{ $('Form Webhook').item.json.body.last_name }} at {{ $('Form Webhook').item.json.body.company }}\nScore: {{ $('GPT Score Fit').item.json.message.content.score }}\nReason: {{ $('GPT Score Fit').item.json.message.content.reasoning }}"
       },
       "id": "64bb7751-fe4e-4d33-9ff8-af1efc1a8e07",
       "name": "Slack Alert AE",

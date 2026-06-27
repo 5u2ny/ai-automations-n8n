@@ -1,6 +1,22 @@
 {
-  "name": "PM 02 \u2014 Interview Synthesis Engine",
+  "name": "PM 02 — Interview Synthesis Engine",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: PM 02 — Interview Synthesis Engine\nNodes: 12\nTrigger: Zoom Webhook\nCredentials/services: Google Drive, Meeting transcript provider, Notion, OpenAI, OpenAI embeddings, Qdrant, Slack OAuth\nPlaceholders: #research, YOUR_RESEARCH_DB, YOUR_RESEARCH_FOLDER\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Zoom Webhook\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-c4aebbdc1c5584bef7c13e1e",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "path": "zoom-recording",

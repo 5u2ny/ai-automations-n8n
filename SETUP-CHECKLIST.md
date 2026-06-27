@@ -1,16 +1,42 @@
 # Setup Checklist
 
-Run through this in order. Items I can't do for you are marked **YOU**; items I already did are marked **DONE**.
+Run through this in order. Items marked **YOU** require account access, API keys, OAuth login, real destination IDs, or production webhook registration.
 
 ---
 
-## Step 1 — Infrastructure  ✅ DONE
+## Step 1 — Infrastructure
 
-- [x] Docker installed & running
-- [x] n8n container running at http://localhost:5678
-- [x] Volume `n8n_data` persists workflows across restarts
-- [x] All 36 workflows imported into n8n DB
-- [x] Owner account created (you logged in)
+- [ ] Docker installed and running.
+- [ ] `.env` created from `.env.example`.
+- [ ] `N8N_ENCRYPTION_KEY` set to a long stable random string.
+- [ ] `POSTGRES_PASSWORD` changed from the example value.
+- [ ] `WEBHOOK_URL` set to the public HTTPS URL for production webhook registrations.
+- [ ] n8n stack started with `docker compose up -d postgres n8n qdrant redis`.
+- [ ] n8n owner account created.
+- [ ] All workflows imported with `npm run import:workflows`.
+
+Reference: [docs/LIVE_DEPLOYMENT.md](docs/LIVE_DEPLOYMENT.md).
+
+---
+
+## Step 1.5 — Readiness Report
+
+Run:
+
+```bash
+npm run readiness
+```
+
+Open [docs/LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md). It is generated from the workflow JSON and lists each workflow's:
+
+- Trigger or manual/upstream requirement
+- Credential and service groups
+- Placeholder values
+- Direct environment variables
+- External webhook registrations
+- Activation blockers
+
+Each workflow also has a **Live Deployment Checklist** sticky note inside the n8n canvas after import.
 
 ---
 
@@ -121,6 +147,22 @@ Send yourself a test email → within 60 seconds a Gmail draft should appear.
 
 ---
 
-## Why I can't do Steps 2–4
+## Step 6 — Production Activation Guardrail
 
-Real OAuth tokens, account IDs, channel names, and external-system webhook registrations all require **your accounts**. I can't sign into your Gmail or generate your HubSpot token. Everything that *didn't* require your secrets is done.
+Before toggling **Active** on any workflow:
+
+- [ ] Every node has a credential selected or a deliberate unauthenticated mode.
+- [ ] Every `YOUR_*`, `yourco`, and `#channel` placeholder is replaced.
+- [ ] Every direct env var listed in the sticky note is set in the runtime environment.
+- [ ] Every webhook trigger has its production URL registered in the source system.
+- [ ] One full test execution reaches the final node successfully.
+- [ ] Draft/send behavior is reviewed by the business owner.
+- [ ] Rate limits and suppression rules are reviewed for outbound/customer-facing workflows.
+
+Run `npm run readiness:strict` from the configured production shell as the last automated check. It should fail until placeholders, env vars, webhook setup, and manual-trigger gaps have been handled.
+
+---
+
+## Why Steps 2–4 Stay Manual
+
+Real OAuth tokens, account IDs, channel names, and external-system webhook registrations require account-owner access. Keep those values out of git and configure them directly in the target n8n instance or deployment environment.

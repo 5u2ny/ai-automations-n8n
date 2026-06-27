@@ -1,6 +1,22 @@
 {
-  "name": "GTM 12 \u2014 Account-Based Intent Signal Engine",
+  "name": "GTM 12 — Account-Based Intent Signal Engine",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: GTM 12 — Account-Based Intent Signal Engine\nNodes: 14\nTrigger: Daily 7am, Trigger Retarget Ad\nCredentials/services: Google Sheets, HubSpot, OpenAI, Slack OAuth\nPlaceholders: #abm, YOUR_GA_PROP, YOUR_SHEET_ID\nEnvironment variables: None detected\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-033b8627cc0d8c1cbd2d5a63",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "rule": {

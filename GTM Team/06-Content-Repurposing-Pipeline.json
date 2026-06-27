@@ -1,6 +1,22 @@
 {
-  "name": "GTM 06 \u2014 Content Repurposing Pipeline",
+  "name": "GTM 06 — Content Repurposing Pipeline",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: GTM 06 — Content Repurposing Pipeline\nNodes: 5\nTrigger: YouTube RSS\nCredentials/services: Notion, OpenAI\nPlaceholders: YOUR_CHANNEL_ID, YOUR_DB\nEnvironment variables: None detected\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-60878ac2fc0b9a8a2e9a5b05",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "pollTimes": {
@@ -47,7 +63,7 @@
           "values": [
             {
               "role": "system",
-              "content": "Convert transcript \u2192 200-word LinkedIn post. Hook, 3 insights, CTA to video."
+              "content": "Convert transcript → 200-word LinkedIn post. Hook, 3 insights, CTA to video."
             },
             {
               "content": "={{ $json.data }}"
@@ -77,7 +93,7 @@
           "values": [
             {
               "role": "system",
-              "content": "Convert transcript \u2192 7-tweet thread. Numbered. Tweet 1 = hook. Last tweet = video link."
+              "content": "Convert transcript → 7-tweet thread. Numbered. Tweet 1 = hook. Last tweet = video link."
             },
             {
               "content": "={{ $('Get Transcript').item.json.data }}"

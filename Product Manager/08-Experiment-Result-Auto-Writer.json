@@ -1,6 +1,22 @@
 {
-  "name": "PM 08 \u2014 Experiment Result Auto-Writer",
+  "name": "PM 08 — Experiment Result Auto-Writer",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: PM 08 — Experiment Result Auto-Writer\nNodes: 11\nTrigger: Experiment End Webhook\nCredentials/services: Amplitude API, GrowthBook or Statsig API, Linear API, Mixpanel API, Notion, OpenAI, Slack OAuth\nPlaceholders: #experiments, YOUR_EXPERIMENTS_DB, YOUR_TEAM\nEnvironment variables: LINEAR_API_KEY\nExternal webhook setup: register production URL for Experiment End Webhook\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-55023eac6390cb5e342bb16b",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "path": "exp-end",
@@ -199,7 +215,7 @@
           "value": "experiments",
           "mode": "name"
         },
-        "text": "=:bar_chart: *{{ $('Get Experiment Meta').item.json.name }}* \u2014 Decision: *{{ $('Extract Decision').item.json.message.content.decision }}* (lift {{ $('Extract Decision').item.json.message.content.lift_pct.toFixed(1) }}%, confidence {{ $('Extract Decision').item.json.message.content.confidence }})\n\n{{ $('Decision Memo').item.json.message.content }}"
+        "text": "=:bar_chart: *{{ $('Get Experiment Meta').item.json.name }}* — Decision: *{{ $('Extract Decision').item.json.message.content.decision }}* (lift {{ $('Extract Decision').item.json.message.content.lift_pct.toFixed(1) }}%, confidence {{ $('Extract Decision').item.json.message.content.confidence }})\n\n{{ $('Decision Memo').item.json.message.content }}"
       },
       "id": "afb7e063-83f2-440a-ba20-4b0b947d5b64",
       "name": "Slack #experiments",

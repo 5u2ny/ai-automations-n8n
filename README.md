@@ -16,6 +16,27 @@ Each automation ships with two files:
 - `NN-Name.md` — what it does, stack, setup notes.
 - `NN-Name.json` — importable n8n workflow.
 
+## Live deployment
+
+This repo includes a production-like local stack and readiness tooling:
+
+```bash
+cp .env.example .env
+# edit .env: set N8N_ENCRYPTION_KEY, POSTGRES_PASSWORD, WEBHOOK_URL, and any direct API env vars
+docker compose up -d postgres n8n qdrant redis
+npm run readiness
+npm run import:workflows
+```
+
+Deployment assets:
+
+- [docs/LIVE_DEPLOYMENT.md](docs/LIVE_DEPLOYMENT.md) — end-to-end live setup path.
+- [docs/LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md) — generated matrix of every workflow's placeholders, credentials, env vars, and webhook setup.
+- `scripts/workflow-readiness.mjs` — validates/generates readiness metadata from the actual workflow JSON.
+- `scripts/import-workflows.sh` — imports all workflows into the compose-managed n8n container.
+
+Every workflow JSON now includes a **Live Deployment Checklist** sticky note inside n8n. Configure the items in that note, execute once with test data, then activate.
+
 ## Workflow index
 
 ### GTM Team
@@ -71,7 +92,7 @@ Stack: Linear + Jira · Amplitude + Mixpanel · Notion · Slack · OpenAI · Qdr
 | 09 | Release Notes Auto-Generator (3 parallel audience versions) | 12 |
 | 10 | Sprint Retro Bot (metrics + Slack sentiment → retro doc + action tickets) | 12 |
 
-## How to use
+## How to use manually
 
 1. In n8n: **Workflows → Import from File** → select the `.json`.
 2. Open each node and assign your credentials (OpenAI, Gmail, Slack, HubSpot, Notion, etc.).
@@ -79,11 +100,11 @@ Stack: Linear + Jira · Amplitude + Mixpanel · Notion · Slack · OpenAI · Qdr
 4. Test with **Execute Workflow** before flipping **Active** on.
 5. Swap OpenAI for Ollama + a local model if you need zero-cost inference.
 
-See [SETUP-CHECKLIST.md](SETUP-CHECKLIST.md) for the complete credential matrix, placeholder map, and webhook registration table.
+See [SETUP-CHECKLIST.md](SETUP-CHECKLIST.md) for the credential matrix, placeholder map, and webhook registration table.
 
 ## Validation
 
-All 36 workflows were imported into a live `n8nio/n8n:latest` Docker container via `n8n import:workflow` — every workflow loads with all nodes recognized and connections intact.
+All 36 workflows have generated readiness metadata. Run `npm run readiness` after editing workflow JSON to refresh [docs/LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md). Run `npm run readiness:strict` in a configured live shell to fail if placeholders, direct env vars, webhook registrations, or manual trigger gaps still need attention.
 
 ## Rollout suggestions
 

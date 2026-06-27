@@ -1,6 +1,22 @@
 {
-  "name": "GTM 02 \u2014 AI Cold Email Personalizer",
+  "name": "GTM 02 — AI Cold Email Personalizer",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: GTM 02 — AI Cold Email Personalizer\nNodes: 6\nTrigger: Manual/upstream call required\nCredentials/services: Gmail OAuth, Google Sheets, OpenAI\nPlaceholders: YOUR_SHEET_ID\nEnvironment variables: None detected\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-b2019dd38fb9eddb4dfeaa0a",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "operation": "read",

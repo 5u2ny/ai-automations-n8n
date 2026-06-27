@@ -1,6 +1,22 @@
 {
-  "name": "PM 09 \u2014 Release Notes Auto-Generator",
+  "name": "PM 09 — Release Notes Auto-Generator",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: PM 09 — Release Notes Auto-Generator\nNodes: 12\nTrigger: Friday 3pm\nCredentials/services: Jira API, Linear API, Mailchimp, Notion, OpenAI, Slack OAuth\nPlaceholders: #general, #sales-enablement, YOUR_DC, YOUR_LIST, YOUR_ORG, YOUR_RELEASES_DB, yourco\nEnvironment variables: LINEAR_API_KEY\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-dac123b3b41e16d8959c5227",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "rule": {
@@ -260,7 +276,7 @@
           "value": "sales-enablement",
           "mode": "name"
         },
-        "text": "=:rocket: *Shipped this week \u2014 sales notes*\n\n{{ $('Sales Version').item.json.message.content }}"
+        "text": "=:rocket: *Shipped this week — sales notes*\n\n{{ $('Sales Version').item.json.message.content }}"
       },
       "id": "d0582a41-e89c-46ce-9a96-78f39b06e1eb",
       "name": "Slack #sales-enablement",

@@ -1,6 +1,22 @@
 {
-  "name": "GTM 11 \u2014 End-to-End Outbound Engine",
+  "name": "GTM 11 — End-to-End Outbound Engine",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: GTM 11 — End-to-End Outbound Engine\nNodes: 15\nTrigger: Cron 09:00\nCredentials/services: Apollo API, Clearbit or enrichment API, Gmail OAuth, Google Sheets, OpenAI, Slack OAuth\nPlaceholders: #sales-hot, YOUR_SHEET_ID\nEnvironment variables: APOLLO_API_KEY\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-24a8e4e6502711c6f936eda6",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "rule": {
@@ -283,7 +299,7 @@
           "value": "#sales-hot",
           "mode": "name"
         },
-        "text": "=:tada: Reply from {{ $('Split Leads').item.json.email }} \u2014 assign AE."
+        "text": "=:tada: Reply from {{ $('Split Leads').item.json.email }} — assign AE."
       },
       "id": "2fe21eab-f91c-4db2-90d3-73c4c5f04dfc",
       "name": "Slack AE Reply!",

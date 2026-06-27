@@ -1,6 +1,22 @@
 {
-  "name": "PM 05 \u2014 RICE Auto-Scorer",
+  "name": "PM 05 — RICE Auto-Scorer",
   "nodes": [
+    {
+      "parameters": {
+        "content": "## Live deployment checklist\n\nWorkflow: PM 05 — RICE Auto-Scorer\nNodes: 11\nTrigger: Notion Idea Created\nCredentials/services: Google Sheets, Linear API, Notion, OpenAI, OpenAI embeddings, Qdrant, Slack OAuth\nPlaceholders: YOUR_ARR_SHEET\nEnvironment variables: LINEAR_API_KEY\nExternal webhook setup: register production URL for Notion Idea Created\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "height": 440,
+        "width": 520,
+        "color": 4
+      },
+      "id": "live-634cfff4c7b134fcb7fb68d9",
+      "name": "Live Deployment Checklist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -140
+      ]
+    },
     {
       "parameters": {
         "path": "notion-idea",
@@ -247,7 +263,7 @@
           "value": "product-leads",
           "mode": "name"
         },
-        "text": "=:dart: High-RICE idea: *{{ $('Get Idea').item.json.properties.Name.title[0].plain_text }}* \u2014 score {{ $('Compute RICE').item.json.message.content.rice_score }}. Top evidence: {{ $('Compute RICE').item.json.message.content.top_evidence.join(' | ') }}"
+        "text": "=:dart: High-RICE idea: *{{ $('Get Idea').item.json.properties.Name.title[0].plain_text }}* — score {{ $('Compute RICE').item.json.message.content.rice_score }}. Top evidence: {{ $('Compute RICE').item.json.message.content.top_evidence.join(' | ') }}"
       },
       "id": "f2e7010e-0ef1-4997-b2e6-f7d857e71ecf",
       "name": "DM PM Lead",
