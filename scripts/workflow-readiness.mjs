@@ -8,7 +8,7 @@ const writeReport = args.has("--write");
 const addNotes = args.has("--add-notes");
 const strict = args.has("--strict");
 
-const workflowDirs = ["GTM Team", "First-Time AI Company", "Product Manager"];
+const workflowDirs = ["GTM Team", "AI Enablement for SMBs", "Product Manager"];
 const placeholderPattern =
   /\b(?:YOUR|TODO|TBD|CHANGE_ME|EXAMPLE)[A-Z0-9_-]*\b|\byourco\b|#[a-z0-9][a-z0-9_-]*/g;
 const envPattern = /\$env\.([A-Z0-9_]+)/g;
@@ -50,26 +50,27 @@ function analyze(file) {
   const text = fs.readFileSync(file, "utf8");
   const json = JSON.parse(text);
   const nodes = json.nodes || [];
+  const automationNodes = nodes.filter((node) => node.type !== "n8n-nodes-base.stickyNote");
   const rel = path.relative(root, file);
   const placeholders = unique((text.match(placeholderPattern) || []).map((v) => v.trim()));
   const envVars = unique([...text.matchAll(envPattern)].map((m) => m[1]));
   const triggers = unique(
-    nodes
+    automationNodes
       .filter((node) => /trigger|webhook|cron|schedule/i.test(`${node.type} ${node.name}`))
       .map((node) => node.name),
   );
   const aiNodes = unique(
-    nodes
+    automationNodes
       .filter((node) => /openai|qdrant|embedding|whisper|gpt/i.test(`${node.type} ${node.name}`))
       .map((node) => node.name),
   );
   const routingNodes = unique(
-    nodes
+    automationNodes
       .filter((node) => /if|switch|wait|merge|filter|aggregate/i.test(`${node.type} ${node.name}`))
       .map((node) => node.name),
   );
   const services = unique(
-    nodes.flatMap((node) => {
+    automationNodes.flatMap((node) => {
       const type = String(node.type || "").toLowerCase();
       const direct = serviceHints.filter(([needle]) => type.includes(needle)).map(([, label]) => label);
       const url = JSON.stringify(node.parameters || {});
@@ -86,7 +87,7 @@ function analyze(file) {
       return direct;
     }),
   );
-  const webhookNodes = nodes.filter((node) => String(node.type || "").includes("webhook")).map((node) => node.name);
+  const webhookNodes = automationNodes.filter((node) => String(node.type || "").includes("webhook")).map((node) => node.name);
   const blockers = [];
   if (placeholders.length) blockers.push(`${placeholders.length} placeholder value(s)`);
   if (envVars.length) blockers.push(`${envVars.length} environment variable(s)`);
@@ -99,7 +100,7 @@ function analyze(file) {
     rel,
     name: json.name || path.basename(file, ".json"),
     active: Boolean(json.active),
-    nodeCount: nodes.length,
+    nodeCount: automationNodes.length,
     triggers,
     aiNodes,
     routingNodes,
@@ -199,8 +200,8 @@ function report(items) {
     "",
     "## Fastest Safe Rollout",
     "",
-    "1. FirstAI 02 Email Triage + Draft Replies: OpenAI + Gmail only, drafts instead of sends.",
-    "2. FirstAI 04 Meeting Transcription Action Items: transcript webhook + Notion/Slack, no customer-facing output.",
+    "1. SMB AI 02 Email Triage + Draft Replies: OpenAI + Gmail only, drafts instead of sends.",
+    "2. SMB AI 04 Meeting Transcription Action Items: transcript webhook + Notion/Slack, no customer-facing output.",
     "3. GTM 04 Inbound Lead Qualifier: form webhook + enrichment + HubSpot/Slack, clear revenue KPI.",
     "4. Product Manager 03 PRD Draft Generator: Slack command + Notion + Qdrant, draft-only output.",
   );

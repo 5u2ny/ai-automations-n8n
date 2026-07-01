@@ -1,14 +1,14 @@
 {
-  "name": "FirstAI 05 — Support Ticket Tagger & Router",
+  "name": "SMB AI 05 — Support Ticket Tagger & Router",
   "nodes": [
     {
       "parameters": {
-        "content": "## Live deployment checklist\n\nWorkflow: FirstAI 05 — Support Ticket Tagger & Router\nNodes: 5\nTrigger: Zendesk Webhook\nCredentials/services: OpenAI, Slack OAuth, Zendesk\nPlaceholders: #cs-escalations\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Zendesk Webhook\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "content": "## Live deployment checklist\n\nWorkflow: SMB AI 05 — Support Ticket Tagger & Router\nNodes: 5\nTrigger: Zendesk Webhook\nCredentials/services: OpenAI, Slack OAuth, Zendesk\nPlaceholders: #cs-escalations\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Zendesk Webhook\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
         "height": 440,
         "width": 520,
         "color": 4
       },
-      "id": "live-96eeba47c15eb031b8ecd153",
+      "id": "live-1801f4d90244e6e9fcd257f0",
       "name": "Live Deployment Checklist",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

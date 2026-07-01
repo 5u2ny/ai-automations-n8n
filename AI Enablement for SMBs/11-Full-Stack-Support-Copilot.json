@@ -1,14 +1,14 @@
 {
-  "name": "FirstAI 11 — Full-Stack Support Copilot",
+  "name": "SMB AI 11 — Full-Stack Support Copilot",
   "nodes": [
     {
       "parameters": {
-        "content": "## Live deployment checklist\n\nWorkflow: FirstAI 11 — Full-Stack Support Copilot\nNodes: 12\nTrigger: Email Inbound, Slack Inbound, Web Widget\nCredentials/services: Gmail OAuth, Google Sheets, OpenAI, OpenAI embeddings, Qdrant, Slack OAuth\nPlaceholders: #support-escalations, YOUR_SHEET\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Slack Inbound, Web Widget\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "content": "## Live deployment checklist\n\nWorkflow: SMB AI 11 — Full-Stack Support Copilot\nNodes: 12\nTrigger: Email Inbound, Slack Inbound, Web Widget\nCredentials/services: Gmail OAuth, Google Sheets, OpenAI, OpenAI embeddings, Qdrant, Slack OAuth\nPlaceholders: #support-escalations, YOUR_SHEET\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Slack Inbound, Web Widget\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
         "height": 440,
         "width": 520,
         "color": 4
       },
-      "id": "live-710a75dfb47a64df989e467e",
+      "id": "live-abb0d35bb9a759221d3c007d",
       "name": "Live Deployment Checklist",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

@@ -1,14 +1,14 @@
 {
-  "name": "FirstAI 09 — Knowledge Base Auto-Updater",
+  "name": "SMB AI 09 — Knowledge Base Auto-Updater",
   "nodes": [
     {
       "parameters": {
-        "content": "## Live deployment checklist\n\nWorkflow: FirstAI 09 — Knowledge Base Auto-Updater\nNodes: 5\nTrigger: Weekly Sunday\nCredentials/services: Notion, OpenAI, Zendesk\nPlaceholders: YOUR_KB_DB\nEnvironment variables: None detected\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "content": "## Live deployment checklist\n\nWorkflow: SMB AI 09 — Knowledge Base Auto-Updater\nNodes: 5\nTrigger: Weekly Sunday\nCredentials/services: Notion, OpenAI, Zendesk\nPlaceholders: YOUR_KB_DB\nEnvironment variables: None detected\nExternal webhook setup: not required\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
         "height": 440,
         "width": 520,
         "color": 4
       },
-      "id": "live-e5273afec7ee013e924116fe",
+      "id": "live-9cd6e83f423a7a54f85d21da",
       "name": "Live Deployment Checklist",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,

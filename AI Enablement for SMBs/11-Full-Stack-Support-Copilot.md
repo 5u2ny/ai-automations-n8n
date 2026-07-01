@@ -3,7 +3,7 @@
 ## What it does
 Accepts support requests from email, Slack, and a web widget; normalizes the input; classifies the issue; searches a Qdrant knowledge base; drafts an answer with GPT; escalates negative-sentiment cases; sends safe auto-replies; and logs activity to an analytics sheet.
 
-## Why it wins for first-time AI teams
+## Why it wins for SMB AI enablement teams
 It is a practical support copilot with clear human escalation. Teams get faster draft replies and routing without handing every customer interaction to an unsupervised AI system.
 
 ## Stack

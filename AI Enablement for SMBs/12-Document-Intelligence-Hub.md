@@ -3,7 +3,7 @@
 ## What it does
 Watches a Google Drive folder, downloads new files, extracts text, classifies document type with GPT, routes by document class, extracts structured fields for contracts, invoices, and resumes, then saves outputs to Notion, Google Sheets, ATS, or a team Slack channel.
 
-## Why it wins for first-time AI teams
+## Why it wins for SMB AI enablement teams
 Document processing is one of the safest early AI use cases because the workflow can stay internal, auditable, and reversible. This workflow turns unstructured files into structured review queues.
 
 ## Stack

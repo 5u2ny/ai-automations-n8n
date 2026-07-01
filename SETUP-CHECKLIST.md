@@ -49,15 +49,15 @@ Add the ones for the workflows you actually plan to run first, not every credent
 | Credential | Where to get it | Needed by |
 |---|---|---|
 | **OpenAI API** | platform.openai.com → API Keys | All 36 |
-| **Gmail OAuth2** | n8n guides you through Google OAuth | GTM 02, 05, 09 · FirstAI 02, 03 |
-| **Google Sheets/Drive OAuth2** | Same Google OAuth flow | GTM 01, 02 · FirstAI 03, 06 |
-| **Slack OAuth2** | api.slack.com → Create App | GTM 04, 07, 10 · FirstAI 03, 04, 05, 08, 10 |
+| **Gmail OAuth2** | n8n guides you through Google OAuth | GTM 02, 05, 09 · SMB AI 02, 03 |
+| **Google Sheets/Drive OAuth2** | Same Google OAuth flow | GTM 01, 02 · SMB AI 03, 06 |
+| **Slack OAuth2** | api.slack.com → Create App | GTM 04, 07, 10 · SMB AI 03, 04, 05, 08, 10 |
 | **HubSpot OAuth2** | HubSpot → Settings → Integrations → Private Apps | GTM 04, 05, 08, 10 |
-| **Notion API** | notion.so/my-integrations | GTM 03, 06, 10 · FirstAI 04, 09 |
-| **Zendesk API** | Zendesk admin → API → Token | FirstAI 05, 09 |
+| **Notion API** | notion.so/my-integrations | GTM 03, 06, 10 · SMB AI 04, 09 |
+| **Zendesk API** | Zendesk admin → API → Token | SMB AI 05, 09 |
 | **Telegram Bot** | @BotFather on Telegram | GTM 03 |
-| **Qdrant** | Qdrant Cloud or self-hosted URL + key | FirstAI 01 |
-| **Redis** | Local or cloud Redis URL | FirstAI 10 |
+| **Qdrant** | Qdrant Cloud or self-hosted URL + key | SMB AI 01 |
+| **Redis** | Local or cloud Redis URL | SMB AI 10 |
 | **Linear / Jira** | Linear and Atlassian app settings | Product Manager workflows |
 | **Amplitude / Mixpanel** | Product analytics workspace API keys | Product Manager workflows |
 | **GrowthBook** | GrowthBook API key | PM 08 |
@@ -87,7 +87,7 @@ For each workflow you want to activate, open the listed node and replace the pla
 - **12 Account-Based Intent Engine** → `GA4 Page Visits` → `YOUR_GA_PROP` · `Queue Email Touch` / `Queue LinkedIn DM` → `YOUR_SHEET_ID` · `Trigger Retarget Ad` → `YOUR_AD_ACCT` · `Slack Hot Accounts` → `#abm`
 - **13 RevOps Forecast Pipeline** → `Slack #exec` → `#exec` · `Archive Notion` → `YOUR_FORECAST_DB`
 
-### First-Time AI Company
+### AI Enablement for SMBs
 - **01 Internal RAG QA Bot** → no placeholders (configure Qdrant collection name `company_docs`)
 - **02 Email Triage Drafts** → no placeholders
 - **03 Invoice OCR** → `Review Queue (Sheet)` → `YOUR_SHEET` · `Slack Finance` → `#finance`
@@ -126,16 +126,16 @@ Workflows with Webhook triggers expose URLs that you must register in the source
 | GTM 05 SDR Follow-Up | HubSpot Workflow → Trigger → POST URL |
 | GTM 08 Meeting Notes | Fireflies → Integrations → Webhooks |
 | GTM 09 Pre-Call Brief | Calendly → Integrations → Webhooks |
-| FirstAI 04 Meeting Action Items | Otter → Integrations → Webhooks |
-| FirstAI 05 Ticket Tagger | Zendesk → Admin → Webhooks → Triggers |
-| FirstAI 07 Resume Screener | Greenhouse → Configure → Webhooks |
-| FirstAI 10 Error Logs | Sentry → Settings → Integrations → Webhooks |
+| SMB AI 04 Meeting Action Items | Otter → Integrations → Webhooks |
+| SMB AI 05 Ticket Tagger | Zendesk → Admin → Webhooks → Triggers |
+| SMB AI 07 Resume Screener | Greenhouse → Configure → Webhooks |
+| SMB AI 10 Error Logs | Sentry → Settings → Integrations → Webhooks |
 
 ---
 
 ## Step 5 — Test one workflow end-to-end  **YOU + verify**
 
-Pick the easiest first (suggested: **FirstAI 02 Email Triage** — only needs OpenAI + Gmail).
+Pick the easiest first (suggested: **SMB AI 02 Email Triage** — only needs OpenAI + Gmail).
 
 1. Open the workflow in n8n.
 2. Click each node → confirm credentials selected.

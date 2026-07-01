@@ -5,7 +5,7 @@ This repository contains 36 ready-to-import n8n workflow templates for teams tha
 The workflows cover three common business areas:
 
 - Go-to-market teams that need help with leads, follow-ups, meetings, content, and revenue reporting.
-- Companies adopting AI for the first time and looking for safe internal automations.
+- SMBs that want practical AI enablement for inboxes, documents, support, meetings, and internal knowledge.
 - Product teams that want better feedback triage, PRD drafting, release notes, roadmap updates, and experiment summaries.
 
 Each workflow is designed as a practical starting point. You import it into n8n, connect your business tools, replace a few placeholders, test it, and then turn it on.
@@ -42,7 +42,7 @@ You do not need to be a developer to understand what is inside this repo. You do
 | Area | Workflows | Best For |
 |---|---:|---|
 | GTM Team | 13 | Leads, outbound, CRM updates, meeting briefs, market monitoring, revenue reporting |
-| First-Time AI Company | 13 | Email triage, meeting notes, invoice OCR, support routing, contract summaries, internal knowledge search |
+| AI Enablement for SMBs | 13 | Email triage, meeting notes, invoice OCR, support routing, contract summaries, internal knowledge search |
 | Product Manager | 10 | Feedback triage, interview synthesis, PRDs, tickets, RICE scoring, roadmap digests, experiments, release notes |
 
 Every automation includes:
@@ -72,8 +72,8 @@ These are the easiest and safest workflows to try first:
 
 | Workflow | Why Start Here | Main Apps Needed |
 |---|---|---|
-| First-Time AI Company 02: Email Triage + Draft Replies | Creates draft replies instead of sending automatically | Gmail, OpenAI |
-| First-Time AI Company 04: Meeting Transcription -> Action Items | Turns meeting notes into tasks and summaries | Transcript tool, Notion, Slack, OpenAI |
+| AI Enablement for SMBs 02: Email Triage + Draft Replies | Creates draft replies instead of sending automatically | Gmail, OpenAI |
+| AI Enablement for SMBs 04: Meeting Transcription -> Action Items | Turns meeting notes into tasks and summaries | Transcript tool, Notion, Slack, OpenAI |
 | GTM Team 04: Inbound Lead Qualifier | Scores inbound leads and alerts sales | Form tool, HubSpot, Slack, OpenAI |
 | GTM Team 06: Content Repurposing Pipeline | Turns existing content into reusable social/post ideas | RSS or YouTube, Notion, OpenAI |
 | Product Manager 03: PRD Draft Generator | Drafts PRDs from a Slack request and company context | Slack, Notion, OpenAI, Qdrant |
@@ -142,7 +142,7 @@ The generated readiness report shows these items for every workflow:
 GTM Team/
   13 workflows for sales, marketing, CRM, outbound, content, and revenue operations
 
-First-Time AI Company/
+AI Enablement for SMBs/
   13 workflows for internal AI adoption, support, documents, inboxes, meetings, and knowledge bases
 
 Product Manager/
@@ -175,7 +175,7 @@ scripts/
 | 12 | Account-Based Intent Engine | Combines account signals into ABM actions |
 | 13 | RevOps Forecast Pipeline | Produces AI-assisted deal risk and forecast memos |
 
-### First-Time AI Company
+### AI Enablement for SMBs
 
 | # | Workflow | What It Helps With |
 |---|---|---|

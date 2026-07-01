@@ -1,14 +1,14 @@
 {
-  "name": "FirstAI 01 — Internal RAG Q&A Bot",
+  "name": "SMB AI 01 — Internal RAG Q&A Bot",
   "nodes": [
     {
       "parameters": {
-        "content": "## Live deployment checklist\n\nWorkflow: FirstAI 01 — Internal RAG Q&A Bot\nNodes: 5\nTrigger: Slack Slash /ask\nCredentials/services: OpenAI, OpenAI embeddings, Qdrant\nPlaceholders: None detected\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Slack Slash /ask\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
+        "content": "## Live deployment checklist\n\nWorkflow: SMB AI 01 — Internal RAG Q&A Bot\nNodes: 5\nTrigger: Slack Slash /ask\nCredentials/services: OpenAI, OpenAI embeddings, Qdrant\nPlaceholders: None detected\nEnvironment variables: None detected\nExternal webhook setup: register production URL for Slack Slash /ask\n\nBefore activating:\n1. Configure every credential in n8n Credentials.\n2. Replace every placeholder above with live IDs, channels, folders, or database IDs.\n3. Execute once with test data and inspect every node output.\n4. Activate only after the workflow reaches its final node successfully.",
         "height": 440,
         "width": 520,
         "color": 4
       },
-      "id": "live-3f2ba0f31e68b4ee835d1d0b",
+      "id": "live-977d542a887b57d859858363",
       "name": "Live Deployment Checklist",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
