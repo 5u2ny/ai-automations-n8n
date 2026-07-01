@@ -1,117 +1,237 @@
-# AI Automations - n8n
+# AI Automations for n8n
 
-36 production-grade n8n workflows for AI startup go-to-market and first-time AI adopters. Hand-built, not aggregated.
+This repository contains 36 ready-to-import n8n workflow templates for teams that want useful AI automations without starting from a blank canvas.
 
-## Portfolio Context
+The workflows cover three common business areas:
 
-This repo is grounded in resume work from ASANIFY and LEADLE: GTM/CRM automation that lifted lead-to-customer conversion by 27%, contributed to a 22% ARR increase, scaled booked meetings by 4x, and lifted marketing-qualified pipeline volume by 35%. The workflows here translate that operating style into reusable n8n systems across GTM, internal AI adoption, and product management.
+- Go-to-market teams that need help with leads, follow-ups, meetings, content, and revenue reporting.
+- Companies adopting AI for the first time and looking for safe internal automations.
+- Product teams that want better feedback triage, PRD drafting, release notes, roadmap updates, and experiment summaries.
 
-## Structure
+Each workflow is designed as a practical starting point. You import it into n8n, connect your business tools, replace a few placeholders, test it, and then turn it on.
 
-- `GTM Team/` — 13 workflows for AI startup go-to-market (pipeline, outbound, content, revenue).
-- `First-Time AI Company/` — 13 workflows for organizations adopting AI for the first time (safe, internal, high-ROI).
-- `Product Manager/` — 10 complex workflows for the PM operating system (feedback, PRDs, roadmap, experiments, retros).
+## What Is n8n?
 
-Each automation ships with two files:
-- `NN-Name.md` — what it does, stack, setup notes.
-- `NN-Name.json` — importable n8n workflow.
+n8n is an automation tool. It connects apps together so work can move automatically from one system to another.
 
-## Live deployment
+Example:
 
-This repo includes a production-like local stack and readiness tooling:
+1. A customer fills out a form.
+2. n8n receives the form.
+3. AI reviews the information.
+4. The lead is scored.
+5. Sales gets a Slack alert.
+6. The CRM is updated.
+
+That full process can run without someone copying and pasting between tools.
+
+## Who This Is For
+
+This repo is useful for:
+
+- Founders who want AI workflows they can show or ship quickly.
+- GTM teams that want repeatable lead, email, CRM, and reporting automations.
+- Operations teams that want internal AI assistants for documents, inboxes, tickets, and meetings.
+- Product managers who want AI support for research, PRDs, roadmap updates, experiments, and releases.
+- Technical teammates who need importable n8n workflow files instead of only written ideas.
+
+You do not need to be a developer to understand what is inside this repo. You do need access to the apps you want to connect, such as Gmail, Slack, HubSpot, Notion, Linear, Jira, or OpenAI.
+
+## What You Get
+
+| Area | Workflows | Best For |
+|---|---:|---|
+| GTM Team | 13 | Leads, outbound, CRM updates, meeting briefs, market monitoring, revenue reporting |
+| First-Time AI Company | 13 | Email triage, meeting notes, invoice OCR, support routing, contract summaries, internal knowledge search |
+| Product Manager | 10 | Feedback triage, interview synthesis, PRDs, tickets, RICE scoring, roadmap digests, experiments, release notes |
+
+Every automation includes:
+
+- A `.json` file that can be imported into n8n.
+- A `.md` file that explains what the workflow does.
+- A checklist note inside the n8n workflow canvas after import.
+- Readiness reporting that shows what must be connected before launch.
+
+## Start Here
+
+If you are not technical, start with this path:
+
+1. Pick one workflow from the recommended list below.
+2. Open its matching `.md` file to understand the use case.
+3. Ask the person managing n8n to import the `.json` file.
+4. Connect only the apps needed for that one workflow.
+5. Replace placeholder values like sheet IDs, database IDs, and Slack channel names.
+6. Run one test with safe sample data.
+7. Turn the workflow on only after the test succeeds.
+
+Do not try to activate all 36 workflows at once. Start with one useful workflow, prove it works, then expand.
+
+## Best First Workflows
+
+These are the easiest and safest workflows to try first:
+
+| Workflow | Why Start Here | Main Apps Needed |
+|---|---|---|
+| First-Time AI Company 02: Email Triage + Draft Replies | Creates draft replies instead of sending automatically | Gmail, OpenAI |
+| First-Time AI Company 04: Meeting Transcription -> Action Items | Turns meeting notes into tasks and summaries | Transcript tool, Notion, Slack, OpenAI |
+| GTM Team 04: Inbound Lead Qualifier | Scores inbound leads and alerts sales | Form tool, HubSpot, Slack, OpenAI |
+| GTM Team 06: Content Repurposing Pipeline | Turns existing content into reusable social/post ideas | RSS or YouTube, Notion, OpenAI |
+| Product Manager 03: PRD Draft Generator | Drafts PRDs from a Slack request and company context | Slack, Notion, OpenAI, Qdrant |
+| Product Manager 09: Release Notes Auto-Generator | Creates audience-specific release notes | Linear/Jira, Notion, Slack, OpenAI |
+
+## Two Ways To Use This Repo
+
+### Option 1: Manual Import
+
+Use this if someone already has an n8n account or n8n Cloud workspace.
+
+1. Open n8n.
+2. Go to **Workflows**.
+3. Choose **Import from File**.
+4. Select one `.json` workflow file from this repo.
+5. Open the workflow and read the sticky note named **Live Deployment Checklist**.
+6. Add credentials for the apps used by that workflow.
+7. Replace placeholders.
+8. Run a test.
+9. Activate the workflow only after the test works.
+
+### Option 2: Local Technical Setup
+
+Use this if a technical teammate wants to run n8n locally with the included database and services.
 
 ```bash
 cp .env.example .env
-# edit .env: set N8N_ENCRYPTION_KEY, POSTGRES_PASSWORD, WEBHOOK_URL, and any direct API env vars
+# edit .env with your real values
 docker compose up -d postgres n8n qdrant redis
 npm run readiness
 npm run import:workflows
 ```
 
-Deployment assets:
+Technical setup details are in [docs/LIVE_DEPLOYMENT.md](docs/LIVE_DEPLOYMENT.md).
 
-- [docs/LIVE_DEPLOYMENT.md](docs/LIVE_DEPLOYMENT.md) — end-to-end live setup path.
-- [docs/LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md) — generated matrix of every workflow's placeholders, credentials, env vars, and webhook setup.
-- `scripts/workflow-readiness.mjs` — validates/generates readiness metadata from the actual workflow JSON.
-- `scripts/import-workflows.sh` — imports all workflows into the compose-managed n8n container.
+## Before You Turn Anything On
 
-Every workflow JSON now includes a **Live Deployment Checklist** sticky note inside n8n. Configure the items in that note, execute once with test data, then activate.
+Every live workflow needs four things checked:
 
-## Workflow index
+1. **Credentials**: the workflow can log into the apps it needs.
+2. **Placeholders**: example values have been replaced with your real sheet IDs, database IDs, channel names, folder IDs, or account IDs.
+3. **Webhook setup**: if an outside app needs to call n8n, the production webhook URL has been copied into that app.
+4. **Test run**: the workflow has completed once with test data and the final output looks right.
+
+The generated readiness report shows these items for every workflow:
+
+[docs/LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md)
+
+## Common Terms
+
+| Term | Plain-English Meaning |
+|---|---|
+| Workflow | The full automation from start to finish |
+| Node | One step inside a workflow, such as reading Gmail or sending Slack |
+| Credential | The login or API connection that lets n8n access an app |
+| Placeholder | Example text that must be replaced, such as `YOUR_SHEET_ID` |
+| Webhook | A special URL that lets another app send data into n8n |
+| Trigger | The event that starts the workflow, such as a new email or scheduled time |
+| Active | The workflow is turned on and can run automatically |
+| Qdrant | A vector database used for AI search and retrieval |
+| RAG | Retrieval-augmented generation; AI answers using stored company knowledge |
+
+## Repository Structure
+
+```text
+GTM Team/
+  13 workflows for sales, marketing, CRM, outbound, content, and revenue operations
+
+First-Time AI Company/
+  13 workflows for internal AI adoption, support, documents, inboxes, meetings, and knowledge bases
+
+Product Manager/
+  10 workflows for product research, PRDs, prioritization, experiments, release notes, and retros
+
+docs/
+  Live deployment guide and readiness report
+
+scripts/
+  Workflow readiness scanner and bulk import script
+```
+
+## Workflow Catalog
 
 ### GTM Team
 
-| # | Workflow | Nodes |
+| # | Workflow | What It Helps With |
 |---|---|---|
-| 01 | ICP Lead Scraper | 5 |
-| 02 | AI Cold Email Personalizer | 6 |
-| 03 | LinkedIn Founder Content Agent | 5 |
-| 04 | Inbound Lead Qualifier | 6 |
-| 05 | AI SDR Follow-Up Sequencer | 6 |
-| 06 | Content Repurposing Pipeline | 5 |
-| 07 | Competitor & Market Monitor | 6 |
-| 08 | AI Meeting Notes → CRM | 5 |
-| 09 | Demo Request Pre-Call Briefing | 6 |
-| 10 | Pipeline Health Reporter | 6 |
-| 11 | **End-to-End Outbound Engine** (branching, wait, reply detection) | 15 |
-| 12 | **Account-Based Intent Engine** (multi-signal, switch, multi-channel) | 14 |
-| 13 | **RevOps Forecast Pipeline** (per-deal AI risk + aggregate memo) | 14 |
+| 01 | ICP Lead Scraper | Finds and stores target accounts or leads |
+| 02 | AI Cold Email Personalizer | Drafts more relevant outbound emails |
+| 03 | LinkedIn Founder Content Agent | Turns ideas into founder-led LinkedIn content |
+| 04 | Inbound Lead Qualifier | Scores inbound leads and alerts sales |
+| 05 | AI SDR Follow-Up Sequencer | Follows up with prospects based on status |
+| 06 | Content Repurposing Pipeline | Converts long-form content into reusable assets |
+| 07 | Competitor & Market Monitor | Watches competitor or market updates |
+| 08 | AI Meeting Notes -> CRM | Converts meeting notes into CRM updates |
+| 09 | Demo Request Pre-Call Briefing | Prepares sales before a demo call |
+| 10 | Pipeline Health Reporter | Summarizes sales pipeline health |
+| 11 | End-to-End Outbound Engine | Runs a fuller outbound motion with branching and reply detection |
+| 12 | Account-Based Intent Engine | Combines account signals into ABM actions |
+| 13 | RevOps Forecast Pipeline | Produces AI-assisted deal risk and forecast memos |
 
 ### First-Time AI Company
 
-| # | Workflow | Nodes |
+| # | Workflow | What It Helps With |
 |---|---|---|
-| 01 | Internal RAG Q&A Bot | 5 |
-| 02 | Email Triage + Draft Replies | 5 |
-| 03 | Invoice / Receipt OCR | 5 |
-| 04 | Meeting Transcription → Action Items | 6 |
-| 05 | Support Ticket Tagger & Router | 5 |
-| 06 | PDF Contract Summarizer | 5 |
-| 07 | HR Resume Screener | 5 |
-| 08 | Daily Standup Aggregator | 6 |
-| 09 | Knowledge Base Auto-Updater | 5 |
-| 10 | Error Log Summarizer | 6 |
-| 11 | **Full-Stack Support Copilot** (3 channels, RAG, sentiment routing) | 12 |
-| 12 | **Document Intelligence Hub** (classify + 4-way switch + extractors) | 13 |
-| 13 | **Multi-Source Knowledge Sync** (hourly ingest + daily digest) | 13 |
+| 01 | Internal RAG Q&A Bot | Lets employees ask questions over company documents |
+| 02 | Email Triage + Draft Replies | Sorts email and creates draft replies |
+| 03 | Invoice / Receipt OCR | Extracts information from invoices and receipts |
+| 04 | Meeting Transcription -> Action Items | Turns meeting transcripts into tasks and summaries |
+| 05 | Support Ticket Tagger & Router | Tags and routes support tickets |
+| 06 | PDF Contract Summarizer | Summarizes contracts and highlights key terms |
+| 07 | HR Resume Screener | Reviews resumes against role criteria |
+| 08 | Daily Standup Aggregator | Summarizes daily team updates |
+| 09 | Knowledge Base Auto-Updater | Drafts updates to internal knowledge bases |
+| 10 | Error Log Summarizer | Groups and explains error logs |
+| 11 | Full-Stack Support Copilot | Handles support across multiple channels with escalation |
+| 12 | Document Intelligence Hub | Classifies and routes business documents |
+| 13 | Multi-Source Knowledge Sync | Syncs knowledge from several sources into one system |
 
-### Product Manager (all complex, 11–15 nodes)
+### Product Manager
 
-Stack: Linear + Jira · Amplitude + Mixpanel · Notion · Slack · OpenAI · Qdrant.
-
-| # | Workflow | Nodes |
+| # | Workflow | What It Helps With |
 |---|---|---|
-| 01 | Feedback Triage Hub (4 sources + Qdrant dedup → Linear) | 15 |
-| 02 | Interview Synthesis Engine (Zoom → Whisper → quote-level Qdrant) | 12 |
-| 03 | PRD Draft Generator (Slack `/prd` → retrieve similar → draft → Notion) | 11 |
-| 04 | Spec → Linear Tickets Splitter (Notion approved → epic + children + Jira mirror) | 11 |
-| 05 | RICE Auto-Scorer (evidence-anchored from feedback + tickets + revenue) | 11 |
-| 06 | Stakeholder Roadmap Digest (4 parallel audience versions) | 13 |
-| 07 | Product Anomaly Watcher (Amplitude + Mixpanel baseline diff + cause hypothesis) | 12 |
-| 08 | Experiment Result Auto-Writer (GrowthBook → decision memo → Linear follow-up) | 11 |
-| 09 | Release Notes Auto-Generator (3 parallel audience versions) | 12 |
-| 10 | Sprint Retro Bot (metrics + Slack sentiment → retro doc + action tickets) | 12 |
+| 01 | Feedback Triage Hub | Groups feedback and turns it into product action |
+| 02 | Interview Synthesis Engine | Summarizes research calls into evidence and themes |
+| 03 | PRD Draft Generator | Drafts product requirement documents from a request |
+| 04 | Spec -> Linear Tickets Splitter | Breaks approved specs into delivery tickets |
+| 05 | RICE Auto-Scorer | Scores ideas using reach, impact, confidence, and effort |
+| 06 | Stakeholder Roadmap Digest | Creates roadmap updates for different audiences |
+| 07 | Product Anomaly Watcher | Watches product metrics and flags unusual changes |
+| 08 | Experiment Result Auto-Writer | Turns experiment results into a decision memo |
+| 09 | Release Notes Auto-Generator | Creates release notes for customers, sales, and internal teams |
+| 10 | Sprint Retro Bot | Creates retrospectives from metrics and team signals |
 
-## How to use manually
+## Useful Links
 
-1. In n8n: **Workflows → Import from File** → select the `.json`.
-2. Open each node and assign your credentials (OpenAI, Gmail, Slack, HubSpot, Notion, etc.).
-3. Replace placeholders (`YOUR_SHEET_ID`, `YOUR_DB_ID`, `#channel`, etc.) in the nodes.
-4. Test with **Execute Workflow** before flipping **Active** on.
-5. Swap OpenAI for Ollama + a local model if you need zero-cost inference.
+- [Live deployment guide](docs/LIVE_DEPLOYMENT.md)
+- [Live readiness report](docs/LIVE_READINESS_REPORT.md)
+- [Setup checklist](SETUP-CHECKLIST.md)
+- [.env example](.env.example)
 
-See [SETUP-CHECKLIST.md](SETUP-CHECKLIST.md) for the credential matrix, placeholder map, and webhook registration table.
+## For Technical Operators
 
-## Validation
+Use these commands after editing workflow JSON:
 
-All 36 workflows have generated readiness metadata. Run `npm run readiness` after editing workflow JSON to refresh [docs/LIVE_READINESS_REPORT.md](docs/LIVE_READINESS_REPORT.md). Run `npm run readiness:strict` in a configured live shell to fail if placeholders, direct env vars, webhook registrations, or manual trigger gaps still need attention.
+```bash
+npm run readiness
+npm run readiness:strict
+```
 
-## Rollout suggestions
+Use this command to import all workflows into the local Docker-managed n8n container:
 
-- **GTM team:** start with 04 (Inbound Qualifier) → 02 (Cold Email) → 06 (Content Repurposing). That covers inbound, outbound, and brand in ~2 weeks.
-- **First-time AI:** start with 02 (Email Triage) → 04 (Meeting Action Items) → 01 (Internal RAG). All three are reversible, internal-only, and produce a visible weekly metric for the exec sponsor.
-- **Product Manager:** start with 03 (PRD Draft Generator) → 01 (Feedback Triage Hub) → 09 (Release Notes). PRD generator earns trust fast; Feedback Hub becomes the data layer everything else runs on; Release Notes ships every Friday and locks in cadence.
+```bash
+npm run import:workflows
+```
+
+The strict readiness check is expected to fail until real credentials, placeholders, environment variables, and webhook registrations are configured in the target environment.
 
 ## License
 
-MIT — fork, modify, ship.
+MIT - fork, modify, and ship.
